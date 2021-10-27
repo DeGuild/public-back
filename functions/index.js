@@ -23,23 +23,6 @@ const express = require("express");
 const cors = require("cors")({ origin: true });
 const app = express();
 
-const addCertificate = async (req, res) => {
-  const address = req.body.address;
-  const url = req.body.url
-    ? req.body.url
-    : "https://firebasestorage.googleapis.com/v0/b/deguild-2021.appspot.com/o/0.png?alt=media&token=131e4102-2ca3-4bf0-9480-3038c45aa372";
-  // Push the new message into Firestore using the Firebase Admin SDK.
-  await admin
-    .firestore()
-    .collection("certificate/")
-    .doc(`${address}`)
-    .set({ url, address });
-
-  // Send back a message that we've successfully written the message
-  res.json({
-    result: "Successful",
-  });
-};
 
 const readCertificate = async (req, res) => {
   // Grab the text parameter.
@@ -54,18 +37,6 @@ const readCertificate = async (req, res) => {
 
   res.json({
     imageUrl: `${readResult.data().url}`,
-  });
-};
-
-const deleteCertificate = async (req, res) => {
-  // Grab the text parameter.
-  const address = req.body.address;
-  // Push the new message into Firestore using the Firebase Admin SDK.
-  await admin.firestore().collection("certificate/").doc(`${address}`).delete();
-
-  // Send back a message that we've successfully written the message
-  res.json({
-    result: "Successful",
   });
 };
 
@@ -117,13 +88,154 @@ const allCertificates = async (req, res) => {
   });
 };
 
+const readMagicScroll = async (req, res) => {
+  // Grab the text parameter.
+  const address = req.params.address;
+  const tokenId = req.params.id;
+  const readResult = await admin
+    .firestore()
+    .collection(`MagicShop/${address}/tokens`)
+    .doc(tokenId)
+    .get();
+  // Send back a message that we've successfully written the message
+  functions.logger.log(readResult);
+  if (readResult.data()) {
+    try {
+      res.json(readResult.data());
+    } catch (error) {
+      res.json(error);
+    }
+  } else {
+    res.json({
+      message: "Magic scroll not found!",
+    });
+  }
+};
+
+const allMagicScrolls = async (req, res) => {
+  // Grab the text parameter.
+  const address = req.params.address;
+  const tokenId = parseInt(req.params.tokenId, 10);
+  const direction = req.params.direction;
+
+  let data = [];
+  if (direction === "next") {
+    const startAtSnapshot = admin
+      .firestore()
+      .collection(`MagicShop/${address}/tokens`)
+      .orderBy("tokenId", "asc")
+      .startAfter(tokenId);
+
+    const items = await startAtSnapshot.limit(24).get();
+    items.forEach((doc) => {
+      data.push(doc.data());
+    });
+  } else if (direction === "previous") {
+    const startAtSnapshot = admin
+      .firestore()
+      .collection(`MagicShop/${address}/tokens`)
+      .orderBy("tokenId", "desc")
+      .startAfter(tokenId);
+
+    const items = await startAtSnapshot.limit(24).get();
+    items.forEach((doc) => {
+      data.push(doc.data());
+    });
+  } else {
+    const readResult = await admin
+      .firestore()
+      .collection(`MagicShop/${address}/tokens`)
+      .orderBy("tokenId", "asc")
+      .limit(24)
+      .get();
+    // Send back a message that we've successfully written the message3
+    readResult.forEach((doc) => {
+      data.push(doc.data());
+    });
+    // readResult.map
+    functions.logger.log(readResult);
+  }
+
+  res.json(data.sort());
+};
+
+
+const readJob = async (req, res) => {
+  // Grab the text parameter.
+  const address = req.params.address;
+  const readResult = await admin
+    .firestore()
+    .collection("certificate/")
+    .doc(address)
+    .get();
+  // Send back a message that we've successfully written the message
+  functions.logger.log(readResult.data());
+
+  res.json({
+    imageUrl: `${readResult.data().url}`,
+  });
+};
+
+const allJobs = async (req, res) => {
+  // Grab the text parameter.
+  const address = req.params.address;
+  const tokenId = parseInt(req.params.tokenId, 10);
+  const direction = req.params.direction;
+
+  let data = [];
+  if (direction === "next") {
+    const startAtSnapshot = admin
+      .firestore()
+      .collection(`MagicShop/${address}/tokens`)
+      .orderBy("tokenId", "asc")
+      .startAfter(tokenId);
+
+    const items = await startAtSnapshot.limit(24).get();
+    items.forEach((doc) => {
+      data.push(doc.data());
+    });
+  } else if (direction === "previous") {
+    const startAtSnapshot = admin
+      .firestore()
+      .collection(`MagicShop/${address}/tokens`)
+      .orderBy("tokenId", "desc")
+      .startAfter(tokenId);
+
+    const items = await startAtSnapshot.limit(24).get();
+    items.forEach((doc) => {
+      data.push(doc.data());
+    });
+  } else {
+    const readResult = await admin
+      .firestore()
+      .collection(`MagicShop/${address}/tokens`)
+      .orderBy("tokenId", "asc")
+      .limit(24)
+      .get();
+    // Send back a message that we've successfully written the message3
+    readResult.forEach((doc) => {
+      data.push(doc.data());
+    });
+    // readResult.map
+    functions.logger.log(readResult);
+  }
+
+  res.json(data.sort());
+};
+
 app.use(cors);
-app.post("/addCertificate", addCertificate);
+
 app.get("/readCertificate/:address", readCertificate);
-app.post("/deleteCertificate", deleteCertificate);
+app.get("/readMagicScroll/:address/:id", readMagicScroll);
+app.get("/readJob/:address/:id", readJob);
+
+app.get("/allJobs/:address/:tokenId/:direction", allJobs);
+app.get("/allJobs/:address/", allJobs);
+
 app.get("/allCertificates/:address/:direction", allCertificates);
 app.get("/allCertificatesOnce", allCertificates);
-// app.use(cookieParser);
-// app.use(validateFirebaseIdToken);
+
+app.get("/allMagicScrolls/:address/:direction/:tokenId", allMagicScrolls);
+app.get("/allMagicScrolls/:address", allMagicScrolls);
 
 exports.app = functions.https.onRequest(app);
