@@ -87,7 +87,7 @@ const allCertificates = async (req, res) => {
 const readMagicScroll = async (req, res) => {
   // Grab the text parameter.
   const address = req.params.address;
-  const tokenId = req.params.id;
+  const tokenId = parseInt(req.params.tokenId, 10);
   const readResult = await admin
     .firestore()
     .collection(`MagicShop/${address}/tokens`)
@@ -153,18 +153,24 @@ const allMagicScrolls = async (req, res) => {
 
 
 const readJob = async (req, res) => {
-  // Grab the text parameter.
   const address = req.params.address;
+  const tokenId = parseInt(req.params.tokenId, 10);
   const readResult = await admin
     .firestore()
-    .collection("DeGuild/")
-    .doc(address)
+    .collection(`DeGuild/${address}/tokens`)
+    .doc(tokenId)
     .get();
-  // Send back a message that we've successfully written the message
-
-  res.json({
-    imageUrl: `${readResult.data().url}`,
-  });
+  if (readResult.data()) {
+    try {
+      res.json(readResult.data());
+    } catch (error) {
+      res.json(error);
+    }
+  } else {
+    res.json({
+      message: "Job not found!",
+    });
+  }
 };
 
 const allJobs = async (req, res) => {
@@ -216,13 +222,13 @@ const allJobs = async (req, res) => {
 app.use(cors);
 
 app.get("/readCertificate/:address", readCertificate);
-app.get("/readMagicScroll/:address/:id", readMagicScroll);
-app.get("/readJob/:address/:id", readJob);
+app.get("/readMagicScroll/:address/:tokenId", readMagicScroll);
+app.get("/readJob/:address/:tokenId", readJob);
 
 app.get("/allCertificates/:address/:direction", allCertificates);
 app.get("/allCertificatesOnce", allCertificates);
 
-app.get("/allMagicScrolls/:address/:direction/:tokenId", allMagicScrolls);
+app.get("/allMagicScrolls/:address/:tokenId/:direction", allMagicScrolls);
 app.get("/allMagicScrolls/:address", allMagicScrolls);
 
 app.get("/allJobs/:address/:tokenId/:direction", allJobs);
