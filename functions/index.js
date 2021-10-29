@@ -19,7 +19,6 @@ const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 admin.initializeApp();
 const express = require("express");
-//  const cookieParser = require('cookie-parser')();
 const cors = require("cors")({ origin: true });
 const app = express();
 
@@ -29,11 +28,9 @@ const readCertificate = async (req, res) => {
   const address = req.params.address;
   const readResult = await admin
     .firestore()
-    .collection("certificate/")
+    .collection("Certificate/")
     .doc(address)
     .get();
-  // Send back a message that we've successfully written the message
-  functions.logger.log(readResult.data());
 
   res.json({
     imageUrl: `${readResult.data().url}`,
@@ -49,7 +46,7 @@ const allCertificates = async (req, res) => {
   if (direction === "next") {
     const startAtSnapshot = admin
       .firestore()
-      .collection("certificate/")
+      .collection("Certificate/")
       .orderBy("address", "desc")
       .startAfter(address);
 
@@ -60,7 +57,7 @@ const allCertificates = async (req, res) => {
   } else if (direction === "previous") {
     const startAtSnapshot = admin
       .firestore()
-      .collection("certificate/")
+      .collection("Certificate/")
       .orderBy("address", "asc")
       .startAfter(address);
 
@@ -71,7 +68,7 @@ const allCertificates = async (req, res) => {
   } else {
     const readResult = await admin
       .firestore()
-      .collection("certificate/")
+      .collection("Certificate/")
       .orderBy("address", "desc")
       .limit(limit)
       .get();
@@ -80,7 +77,6 @@ const allCertificates = async (req, res) => {
       data.push(doc.id);
     });
     // readResult.map
-    functions.logger.log(readResult);
   }
 
   res.json({
@@ -97,8 +93,6 @@ const readMagicScroll = async (req, res) => {
     .collection(`MagicShop/${address}/tokens`)
     .doc(tokenId)
     .get();
-  // Send back a message that we've successfully written the message
-  functions.logger.log(readResult);
   if (readResult.data()) {
     try {
       res.json(readResult.data());
@@ -152,8 +146,6 @@ const allMagicScrolls = async (req, res) => {
     readResult.forEach((doc) => {
       data.push(doc.data());
     });
-    // readResult.map
-    functions.logger.log(readResult);
   }
 
   res.json(data.sort());
@@ -165,11 +157,10 @@ const readJob = async (req, res) => {
   const address = req.params.address;
   const readResult = await admin
     .firestore()
-    .collection("certificate/")
+    .collection("DeGuild/")
     .doc(address)
     .get();
   // Send back a message that we've successfully written the message
-  functions.logger.log(readResult.data());
 
   res.json({
     imageUrl: `${readResult.data().url}`,
@@ -186,7 +177,7 @@ const allJobs = async (req, res) => {
   if (direction === "next") {
     const startAtSnapshot = admin
       .firestore()
-      .collection(`MagicShop/${address}/tokens`)
+      .collection(`DeGuild/${address}/tokens`)
       .orderBy("tokenId", "asc")
       .startAfter(tokenId);
 
@@ -197,7 +188,7 @@ const allJobs = async (req, res) => {
   } else if (direction === "previous") {
     const startAtSnapshot = admin
       .firestore()
-      .collection(`MagicShop/${address}/tokens`)
+      .collection(`DeGuild/${address}/tokens`)
       .orderBy("tokenId", "desc")
       .startAfter(tokenId);
 
@@ -208,7 +199,7 @@ const allJobs = async (req, res) => {
   } else {
     const readResult = await admin
       .firestore()
-      .collection(`MagicShop/${address}/tokens`)
+      .collection(`DeGuild/${address}/tokens`)
       .orderBy("tokenId", "asc")
       .limit(24)
       .get();
@@ -217,7 +208,6 @@ const allJobs = async (req, res) => {
       data.push(doc.data());
     });
     // readResult.map
-    functions.logger.log(readResult);
   }
 
   res.json(data.sort());
@@ -229,13 +219,13 @@ app.get("/readCertificate/:address", readCertificate);
 app.get("/readMagicScroll/:address/:id", readMagicScroll);
 app.get("/readJob/:address/:id", readJob);
 
-app.get("/allJobs/:address/:tokenId/:direction", allJobs);
-app.get("/allJobs/:address/", allJobs);
-
 app.get("/allCertificates/:address/:direction", allCertificates);
 app.get("/allCertificatesOnce", allCertificates);
 
 app.get("/allMagicScrolls/:address/:direction/:tokenId", allMagicScrolls);
 app.get("/allMagicScrolls/:address", allMagicScrolls);
+
+app.get("/allJobs/:address/:tokenId/:direction", allJobs);
+app.get("/allJobs/:address/", allJobs);
 
 exports.app = functions.https.onRequest(app);
