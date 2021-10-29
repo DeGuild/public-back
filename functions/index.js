@@ -32,9 +32,20 @@ const readCertificate = async (req, res) => {
     .doc(address)
     .get();
 
-  res.json({
-    imageUrl: `${readResult.data().url}`,
-  });
+ 
+  if (readResult.data()) {
+    try {
+      res.json({
+        imageUrl: `${readResult.data().url}`,
+      });
+    } catch (error) {
+      res.json(error);
+    }
+  } else {
+    res.status(404).json({
+      message: "Certificate not found!",
+    });
+  }
 };
 
 const allCertificates = async (req, res) => {
@@ -100,7 +111,7 @@ const readMagicScroll = async (req, res) => {
       res.json(error);
     }
   } else {
-    res.json({
+    res.status(404).json({
       message: "Magic scroll not found!",
     });
   }
@@ -167,7 +178,7 @@ const readJob = async (req, res) => {
       res.json(error);
     }
   } else {
-    res.json({
+    res.status(404).json({
       message: "Job not found!",
     });
   }
@@ -219,11 +230,32 @@ const allJobs = async (req, res) => {
   res.json(data.sort());
 };
 
+const readProfile = async (req, res) => {
+  const address = req.params.address;
+  const readResult = await admin
+    .firestore()
+    .collection(`User`)
+    .doc(address)
+    .get();
+  if (readResult.data()) {
+    try {
+      res.json(readResult.data());
+    } catch (error) {
+      res.json(error);
+    }
+  } else {
+    res.status(404).json({
+      message: "User not found!",
+    });
+  }
+};
+
 app.use(cors);
 
 app.get("/readCertificate/:address", readCertificate);
 app.get("/readMagicScroll/:address/:tokenId", readMagicScroll);
 app.get("/readJob/:address/:tokenId", readJob);
+app.get("/readProfile/:address", readProfile);
 
 app.get("/allCertificates/:address/:direction", allCertificates);
 app.get("/allCertificatesOnce", allCertificates);
@@ -233,5 +265,6 @@ app.get("/allMagicScrolls/:address", allMagicScrolls);
 
 app.get("/allJobs/:address/:tokenId/:direction", allJobs);
 app.get("/allJobs/:address/", allJobs);
+
 
 exports.app = functions.https.onRequest(app);
