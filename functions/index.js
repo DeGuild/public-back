@@ -357,6 +357,11 @@ exports.generateThumbnail = functions.storage
     const fileUrl = originalResult[0];
     // Add the URLs to the Database
     await admin
+      .firestore()
+      .collection(`images/`)
+      .doc(fileUrl)
+      .set({thumbnail: thumbFileUrl });
+    await admin
       .database()
       .ref("images")
       .push({ path: fileUrl, thumbnail: thumbFileUrl });
