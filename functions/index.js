@@ -107,7 +107,7 @@ const allCertificates = async (req, res) => {
 const readMagicScroll = async (req, res) => {
   // Grab the text parameter.
   const address = req.params.address;
-  const tokenId = parseInt(req.params.tokenId, 10);
+  const tokenId = req.params.tokenId;
   const readResult = await admin
     .firestore()
     .collection(`MagicShop/${address}/tokens`)
