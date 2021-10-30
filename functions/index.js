@@ -21,14 +21,18 @@ admin.initializeApp();
 const express = require("express");
 const cors = require("cors")({ origin: true });
 const app = express();
+
+const mkdirp = require('mkdirp');
 const spawn = require("child-process-promise").spawn;
 const path = require("path");
 const os = require("os");
 const fs = require("fs");
+
 const THUMB_MAX_HEIGHT = 200;
 const THUMB_MAX_WIDTH = 200;
 // Thumbnail prefix added to file names.
 const THUMB_PREFIX = "thumb_";
+
 const readCertificate = async (req, res) => {
   // Grab the text parameter.
   const address = req.params.address;
@@ -310,7 +314,7 @@ exports.generateThumbnail = functions.storage
     const metadata = {
       contentType: contentType,
       // To enable Client-side caching you can set the Cache-Control headers here. Uncomment below.
-      // 'Cache-Control': 'public,max-age=3600',
+      'Cache-Control': 'public,max-age=3600',
     };
 
     // Create the temp directory where the storage file will be downloaded.
