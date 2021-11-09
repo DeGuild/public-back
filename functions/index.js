@@ -36,17 +36,17 @@ const THUMB_PREFIX = "thumb_";
 const readCertificate = async (req, res) => {
   // Grab the text parameter.
   const address = req.params.address;
+  const tokenId = req.params.tokenId;
+
   const readResult = await admin
     .firestore()
-    .collection("Certificate/")
-    .doc(address)
+    .collection(`Certificate/${address}/tokens`)
+    .doc(tokenId)
     .get();
 
   if (readResult.data()) {
     try {
-      res.json({
-        imageUrl: `${readResult.data().url}`,
-      });
+      res.json(readResult.data());
     } catch (error) {
       res.json(error);
     }
@@ -58,50 +58,48 @@ const readCertificate = async (req, res) => {
 };
 
 const allCertificates = async (req, res) => {
-  // Grab the text parameter.
-  const limit = 40;
-  const address = req.params.address;
-  const direction = req.params.direction;
-  let data = [];
-  if (direction === "next") {
-    const startAtSnapshot = admin
-      .firestore()
-      .collection("Certificate/")
-      .orderBy("address", "desc")
-      .startAfter(address);
-
-    const items = await startAtSnapshot.limit(limit).get();
-    items.forEach((doc) => {
-      data.push(doc.id);
-    });
-  } else if (direction === "previous") {
-    const startAtSnapshot = admin
-      .firestore()
-      .collection("Certificate/")
-      .orderBy("address", "asc")
-      .startAfter(address);
-
-    const items = await startAtSnapshot.limit(limit).get();
-    items.forEach((doc) => {
-      data.push(doc.id);
-    });
-  } else {
-    const readResult = await admin
-      .firestore()
-      .collection("Certificate/")
-      .orderBy("address", "desc")
-      .limit(limit)
-      .get();
-    // Send back a message that we've successfully written the message3
-    readResult.forEach((doc) => {
-      data.push(doc.id);
-    });
-    // readResult.map
-  }
-
-  res.json({
-    result: data,
-  });
+   // Grab the text parameter.
+   const address = req.params.address;
+   const tokenId = parseInt(req.params.tokenId, 10);
+   const direction = req.params.direction;
+ 
+   let data = [];
+   if (direction === "next") {
+     const startAtSnapshot = admin
+       .firestore()
+       .collection(`Certificate/${address}/tokens`)
+       .orderBy("tokenId", "asc")
+       .startAfter(tokenId);
+ 
+     const items = await startAtSnapshot.limit(24).get();
+     items.forEach((doc) => {
+       data.push(doc.data());
+     });
+   } else if (direction === "previous") {
+     const startAtSnapshot = admin
+       .firestore()
+       .collection(`Certificate/${address}/tokens`)
+       .orderBy("tokenId", "desc")
+       .startAfter(tokenId);
+ 
+     const items = await startAtSnapshot.limit(24).get();
+     items.forEach((doc) => {
+       data.push(doc.data());
+     });
+   } else {
+     const readResult = await admin
+       .firestore()
+       .collection(`Certificate/${address}/tokens`)
+       .orderBy("tokenId", "asc")
+       .limit(24)
+       .get();
+     // Send back a message that we've successfully written the message3
+     readResult.forEach((doc) => {
+       data.push(doc.data());
+     });
+   }
+ 
+   res.json(data.sort());
 };
 
 const readMagicScroll = async (req, res) => {
@@ -260,12 +258,12 @@ const readProfile = async (req, res) => {
 
 app.use(cors);
 
-app.get("/readCertificate/:address", readCertificate);
+app.get("/readCertificate/:address/:tokenId", readCertificate);
 app.get("/readMagicScroll/:address/:tokenId", readMagicScroll);
 app.get("/readJob/:address/:tokenId", readJob);
 app.get("/readProfile/:address", readProfile);
 
-app.get("/allCertificates/:address/:direction", allCertificates);
+app.get("/allCertificates/:address/:tokenId/:direction", allCertificates);
 app.get("/allCertificatesOnce", allCertificates);
 
 app.get("/allMagicScrolls/:address/:tokenId/:direction", allMagicScrolls);
@@ -365,9 +363,5 @@ exports.generateThumbnail = functions.storage
       .collection(`images/`)
       .doc(fileUrl)
       .set({thumbnail: thumbFileUrl });
-    await admin
-      .database()
-      .ref("images")
-      .push({ path: fileUrl, thumbnail: thumbFileUrl });
     return functions.logger.log("Thumbnail URLs saved to database.");
   });
