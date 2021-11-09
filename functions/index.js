@@ -264,7 +264,7 @@ app.get("/readJob/:address/:tokenId", readJob);
 app.get("/readProfile/:address", readProfile);
 
 app.get("/allCertificates/:address/:tokenId/:direction", allCertificates);
-app.get("/allCertificatesOnce", allCertificates);
+app.get("/allCertificates/:address", allCertificates);
 
 app.get("/allMagicScrolls/:address/:tokenId/:direction", allMagicScrolls);
 app.get("/allMagicScrolls/:address", allMagicScrolls);
