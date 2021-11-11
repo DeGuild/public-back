@@ -271,11 +271,11 @@ const shareCertificate = async (req, res) => {
   try {
 
     const caller = await manager.methods.verify(addressUser, tokenType);
-
+    functions.logger.log(caller);
     res.status(200).send(`<!doctype html>
     <head>
       <title>Time</title>
-      <meta http-equiv="refresh" content="5; URL=https://www.bitdegree.org/" />
+      <meta http-equiv="refresh" content="1; URL=https://www.bitdegree.org/" />
     </head>
     <body>
       ${"BONG ".repeat(hours)}
@@ -398,5 +398,6 @@ exports.generateThumbnail = functions.storage
       .collection(`images/`)
       .doc(fileUrl)
       .set({ thumbnail: thumbFileUrl });
+      
     return functions.logger.log("Thumbnail URLs saved to database.");
   });
