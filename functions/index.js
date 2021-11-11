@@ -267,31 +267,42 @@ const shareCertificate = async (req, res) => {
   const tokenType = req.params.type;
 
   const manager = new web3.eth.Contract(abi, addressCertificate);
+  
 
   try {
     const caller = await manager.methods.verify(addressUser, tokenType).call();
+    const name = await manager.methods.name().call();
+    const readResult = await admin
+    .firestore()
+    .collection(`Certificate/${address}/tokens`)
+    .doc(tokenId)
+    .get();
+    const readData = await readResult.data();
+
     functions.logger.log(caller);
     res.status(200).send(`<!doctype html>
     <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width,initial-scale=1.0">
-    <link rel="icon" href="https://certificate-manager.web.app/certificate-icon.png">
-    <title> Reveal the amazing certificate I have! </title>
+      <meta charset="utf-8">
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <meta name="viewport" content="width=device-width,initial-scale=1.0">
 
-    <!-- Facebook, Whatsapp -->
-    <meta property="og:site_name" content="Certificate Sharing Site">
-    <meta property="og:title" content="Reveal the amazing certificate I have!">
-    <meta property="og:description" content="Certificate Sharing Site by DeGuild">
-    <meta property="og:image" content="https://certificate-manager.web.app/certificate-icon.png">
-    <meta property="og:url" content="https://certificate-manager.web.app/">
+      <link rel="icon" href="https://certificate-manager.web.app/certificate-icon.png">
+      <title> Reveal the amazing certificate I have! </title>
 
-     <!-- Twitter -->
-    <meta name="twitter:title" content="Reveal the amazing certificate I have!">
-    <meta name="twitter:description" content="Certificate Sharing Site by DeGuild">
-    <meta name="twitter:image" content="https://certificate-manager.web.app/certificate-icon.png">
-    <meta property="twitter:url" content="https://certificate-manager.web.app/">
-    <meta name="twitter:card" content="summary_large_image">
+      <!-- Facebook, Whatsapp -->
+      <meta property="og:site_name" content="Certificate Sharing Site">
+      <meta property="og:title" content="${readData.title} by ${name}">
+      <meta property="og:description" content="Certificate Sharing Site by DeGuild">
+      <meta property="og:image" content="${readData.url}">
+      <meta property="og:url" content="https://certificate-manager.web.app/">
+
+      <!-- Twitter -->
+      <meta name="twitter:title" content="${readData.title} by ${name}">
+      <meta name="twitter:description" content="Certificate Sharing Site by DeGuild">
+      <meta name="twitter:image" content="${readData.url}">
+      <meta property="twitter:url" content="https://certificate-manager.web.app/">
+      <meta name="twitter:card" content="summary_large_image">
+
       <meta http-equiv="refresh" content="1; URL=https://www.bitdegree.org/" />
     </head>
     <body>
