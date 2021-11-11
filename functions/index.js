@@ -35,6 +35,7 @@ const THUMB_MAX_HEIGHT = 200;
 const THUMB_MAX_WIDTH = 200;
 // Thumbnail prefix added to file names.
 const THUMB_PREFIX = "thumb_";
+const API_PREFIX = 'api';
 
 const readCertificate = async (req, res) => {
   // Grab the text parameter.
@@ -330,7 +331,12 @@ const shareCertificate = async (req, res) => {
     });
   }
 };
-
+app.use((req, res, next) => {
+  if (req.url.indexOf(`/${API_PREFIX}/`) === 0) {
+      req.url = req.url.substring(API_PREFIX.length + 1);
+  }
+  next();
+});
 app.use(cors);
 
 app.get("/readCertificate/:address/:tokenId", readCertificate);
