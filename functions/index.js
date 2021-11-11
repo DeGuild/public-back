@@ -22,7 +22,10 @@ const express = require("express");
 const cors = require("cors")({ origin: true });
 const app = express();
 
-const mkdirp = require('mkdirp');
+const { abi } = require("./ISkillCertificatePlus.json");
+const { createAlchemyWeb3 } = require("@alch/alchemy-web3");
+
+const mkdirp = require("mkdirp");
 const spawn = require("child-process-promise").spawn;
 const path = require("path");
 const os = require("os");
@@ -58,48 +61,48 @@ const readCertificate = async (req, res) => {
 };
 
 const allCertificates = async (req, res) => {
-   // Grab the text parameter.
-   const address = req.params.address;
-   const tokenId = parseInt(req.params.tokenId, 10);
-   const direction = req.params.direction;
- 
-   let data = [];
-   if (direction === "next") {
-     const startAtSnapshot = admin
-       .firestore()
-       .collection(`Certificate/${address}/tokens`)
-       .orderBy("tokenId", "asc")
-       .startAfter(tokenId);
- 
-     const items = await startAtSnapshot.limit(24).get();
-     items.forEach((doc) => {
-       data.push(doc.data());
-     });
-   } else if (direction === "previous") {
-     const startAtSnapshot = admin
-       .firestore()
-       .collection(`Certificate/${address}/tokens`)
-       .orderBy("tokenId", "desc")
-       .startAfter(tokenId);
- 
-     const items = await startAtSnapshot.limit(24).get();
-     items.forEach((doc) => {
-       data.push(doc.data());
-     });
-   } else {
-     const readResult = await admin
-       .firestore()
-       .collection(`Certificate/${address}/tokens`)
-       .orderBy("tokenId", "asc")
-       .limit(24)
-       .get();
-     // Send back a message that we've successfully written the message3
-     readResult.forEach((doc) => {
-       data.push(doc.data());
-     });
-   }
- 
-   res.json(data.sort());
+  // Grab the text parameter.
+  const address = req.params.address;
+  const tokenId = parseInt(req.params.tokenId, 10);
+  const direction = req.params.direction;
+
+  let data = [];
+  if (direction === "next") {
+    const startAtSnapshot = admin
+      .firestore()
+      .collection(`Certificate/${address}/tokens`)
+      .orderBy("tokenId", "asc")
+      .startAfter(tokenId);
+
+    const items = await startAtSnapshot.limit(24).get();
+    items.forEach((doc) => {
+      data.push(doc.data());
+    });
+  } else if (direction === "previous") {
+    const startAtSnapshot = admin
+      .firestore()
+      .collection(`Certificate/${address}/tokens`)
+      .orderBy("tokenId", "desc")
+      .startAfter(tokenId);
+
+    const items = await startAtSnapshot.limit(24).get();
+    items.forEach((doc) => {
+      data.push(doc.data());
+    });
+  } else {
+    const readResult = await admin
+      .firestore()
+      .collection(`Certificate/${address}/tokens`)
+      .orderBy("tokenId", "asc")
+      .limit(24)
+      .get();
+    // Send back a message that we've successfully written the message3
+    readResult.forEach((doc) => {
+      data.push(doc.data());
+    });
+  }
+
+  res.json(data.sort());
 };
 
 const readMagicScroll = async (req, res) => {
@@ -256,6 +259,78 @@ const readProfile = async (req, res) => {
   }
 };
 
+const shareCertificate = async (req, res) => {
+  const hours = (new Date().getHours() % 12) + 1; // London is UTC + 1hr;
+  const web3 = createAlchemyWeb3(functions.config().web3.api);
+  const addressCertificate = req.params.addressC;
+  const addressUser = req.params.addressU;
+  const tokenType = req.params.tokenType;
+
+  const manager = new web3.eth.Contract(abi, addressCertificate);
+
+  try {
+    const caller = await manager.methods.verify(addressUser, tokenType).call();
+    const name = await manager.methods.name().call();
+
+    const readResult = await admin
+      .firestore()
+      .collection(`Certificate/${addressCertificate}/tokens`)
+      .doc(tokenType)
+      .get();
+    const readData = readResult.data();
+
+    let title;
+    let image;
+    if (caller) {
+      image = readData.url;
+      title = `${readData.title} by ${name}`;
+    } else {
+      image =
+        "https://firebasestorage.googleapis.com/v0/b/deguild-2021.appspot.com/o/images%2FChecked_03.png?alt=media&token=8c1448ae-0a42-4804-8dea-1bbd865a184a";
+      title = "NOT VERIFIED";
+    }
+
+    functions.logger.log(caller);
+    functions.logger.log(readData);
+    res.status(200).send(`<!doctype html>
+    <head>
+      <meta charset="utf-8">
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <meta name="viewport" content="width=device-width,initial-scale=1.0">
+
+      <link rel="icon" href="https://certificate-manager.web.app/certificate-icon.png">
+      <title> Reveal the amazing certificate I have! </title>
+
+      <!-- Facebook, Whatsapp -->
+      <meta property="og:site_name" content="Certificate Sharing Site">
+      <meta property="og:title" content="${title}">
+      <meta property="og:description" content="Certificate Sharing Site by DeGuild">
+      <meta property="og:image" content="${image}">
+      <meta property="og:url" content="https://certificate-manager.web.app/">
+
+      <!-- Twitter -->
+      <meta name="twitter:title" content="${title}">
+      <meta name="twitter:description" content="Certificate Sharing Site by DeGuild">
+      <meta name="twitter:image" content="${image}">
+      <meta property="twitter:url" content="https://certificate-manager.web.app/">
+      <meta name="twitter:card" content="summary_large_image">
+    </head>
+    <body>
+      <script>
+      setTimeout(function(){
+        window.location.href = 'https://certificate-manager.web.app/';}, 1000);
+      </script>
+    <p>Web page redirects after 1 seconds.</p>
+    </body>
+  </html>`);
+  } catch (error) {
+    functions.logger.error("Error while verifying with web3", error);
+    res.status(500).json({
+      message: "ERROR",
+    });
+  }
+};
+
 app.use(cors);
 
 app.get("/readCertificate/:address/:tokenId", readCertificate);
@@ -265,6 +340,7 @@ app.get("/readProfile/:address", readProfile);
 
 app.get("/allCertificates/:address/:tokenId/:direction", allCertificates);
 app.get("/allCertificates/:address", allCertificates);
+app.get("/shareCertificate/:addressC/:addressU/:tokenType", shareCertificate);
 
 app.get("/allMagicScrolls/:address/:tokenId/:direction", allMagicScrolls);
 app.get("/allMagicScrolls/:address", allMagicScrolls);
@@ -312,7 +388,7 @@ exports.generateThumbnail = functions.storage
     const metadata = {
       contentType: contentType,
       // To enable Client-side caching you can set the Cache-Control headers here. Uncomment below.
-      'Cache-Control': 'public,max-age=3600',
+      "Cache-Control": "public,max-age=3600",
     };
 
     // Create the temp directory where the storage file will be downloaded.
@@ -362,6 +438,7 @@ exports.generateThumbnail = functions.storage
       .firestore()
       .collection(`images/`)
       .doc(fileUrl)
-      .set({thumbnail: thumbFileUrl });
+      .set({ thumbnail: thumbFileUrl });
+
     return functions.logger.log("Thumbnail URLs saved to database.");
   });
