@@ -305,15 +305,12 @@ const shareCertificate = async (req, res) => {
       <meta name="twitter:card" content="summary_large_image">
     </head>
     <body>
-      ${"BONG ".repeat(hours)}
       ${caller}
-      <button id="myButton" class="float-left submit-button" >Continue</button>
-
-<script type="text/javascript">
-    document.getElementById("myButton").onclick = function () {
-        location.href = "https://certificate-manager.web.app/";
-    };
-</script>
+      <script>
+      setTimeout(function(){
+        window.location.href = 'https://certificate-manager.web.app/';}, 5000);
+      </script>
+    <p>Web page redirects after 5 seconds.</p>
     </body>
   </html>`);
   } catch (error) {
