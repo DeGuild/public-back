@@ -267,14 +267,31 @@ const shareCertificate = async (req, res) => {
   const tokenType = req.params.type;
 
   const manager = new web3.eth.Contract(abi, addressCertificate);
-  
-  try {
 
-    const caller = await manager.methods.verify(addressUser, tokenType);
+  try {
+    const caller = await manager.methods.verify(addressUser, tokenType).call();
     functions.logger.log(caller);
     res.status(200).send(`<!doctype html>
     <head>
-      <title>Time</title>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <link rel="icon" href="https://certificate-manager.web.app/certificate-icon.png">
+    <title> Reveal the amazing certificate I have! </title>
+
+    <!-- Facebook, Whatsapp -->
+    <meta property="og:site_name" content="Certificate Sharing Site">
+    <meta property="og:title" content="Reveal the amazing certificate I have!">
+    <meta property="og:description" content="Certificate Sharing Site by DeGuild">
+    <meta property="og:image" content="https://certificate-manager.web.app/certificate-icon.png">
+    <meta property="og:url" content="https://certificate-manager.web.app/">
+
+     <!-- Twitter -->
+    <meta name="twitter:title" content="Reveal the amazing certificate I have!">
+    <meta name="twitter:description" content="Certificate Sharing Site by DeGuild">
+    <meta name="twitter:image" content="https://certificate-manager.web.app/certificate-icon.png">
+    <meta property="twitter:url" content="https://certificate-manager.web.app/">
+    <meta name="twitter:card" content="summary_large_image">
       <meta http-equiv="refresh" content="1; URL=https://www.bitdegree.org/" />
     </head>
     <body>
@@ -299,7 +316,7 @@ app.get("/readProfile/:address", readProfile);
 
 app.get("/allCertificates/:address/:tokenId/:direction", allCertificates);
 app.get("/allCertificates/:address", allCertificates);
-app.get("/shareCertificate/:addressC/:addressU/:tokenType", shareCertificate)
+app.get("/shareCertificate/:addressC/:addressU/:tokenType", shareCertificate);
 
 app.get("/allMagicScrolls/:address/:tokenId/:direction", allMagicScrolls);
 app.get("/allMagicScrolls/:address", allMagicScrolls);
@@ -398,6 +415,6 @@ exports.generateThumbnail = functions.storage
       .collection(`images/`)
       .doc(fileUrl)
       .set({ thumbnail: thumbFileUrl });
-      
+
     return functions.logger.log("Thumbnail URLs saved to database.");
   });
