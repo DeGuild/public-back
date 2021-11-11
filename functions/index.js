@@ -279,6 +279,17 @@ const shareCertificate = async (req, res) => {
       .get();
     const readData = readResult.data();
 
+    let title;
+    let image;
+    if (caller) {
+      image = readData.url;
+      title = `${readData.title} by ${name}`;
+    } else {
+      image =
+        "https://firebasestorage.googleapis.com/v0/b/deguild-2021.appspot.com/o/images%2FChecked_03.png?alt=media&token=8c1448ae-0a42-4804-8dea-1bbd865a184a";
+      title = "NOT VERIFIED";
+    }
+
     functions.logger.log(caller);
     functions.logger.log(readData);
     res.status(200).send(`<!doctype html>
@@ -292,25 +303,24 @@ const shareCertificate = async (req, res) => {
 
       <!-- Facebook, Whatsapp -->
       <meta property="og:site_name" content="Certificate Sharing Site">
-      <meta property="og:title" content="${readData.title} by ${name}">
+      <meta property="og:title" content="${title}">
       <meta property="og:description" content="Certificate Sharing Site by DeGuild">
-      <meta property="og:image" content="${readData.url}">
+      <meta property="og:image" content="${image}">
       <meta property="og:url" content="https://certificate-manager.web.app/">
 
       <!-- Twitter -->
-      <meta name="twitter:title" content="${readData.title} by ${name}">
+      <meta name="twitter:title" content="${title}">
       <meta name="twitter:description" content="Certificate Sharing Site by DeGuild">
-      <meta name="twitter:image" content="${readData.url}">
+      <meta name="twitter:image" content="${image}">
       <meta property="twitter:url" content="https://certificate-manager.web.app/">
       <meta name="twitter:card" content="summary_large_image">
     </head>
     <body>
-      ${caller}
       <script>
       setTimeout(function(){
-        window.location.href = 'https://certificate-manager.web.app/';}, 5000);
+        window.location.href = 'https://certificate-manager.web.app/';}, 1000);
       </script>
-    <p>Web page redirects after 5 seconds.</p>
+    <p>Web page redirects after 1 seconds.</p>
     </body>
   </html>`);
   } catch (error) {
