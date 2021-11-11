@@ -319,7 +319,7 @@ const shareCertificate = async (req, res) => {
     <body>
       <script>
       setTimeout(function(){
-        window.location.href = 'https://certificate-manager.web.app/';}, 1000);
+        window.location.href = 'https://certificate-manager.web.app/sharing/${addressCertificate}/${addressUser}/${tokenType}';}, 1000);
       </script>
     <p>Web page redirects after 1 seconds.</p>
     </body>
