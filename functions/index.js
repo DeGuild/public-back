@@ -264,22 +264,23 @@ const shareCertificate = async (req, res) => {
   const web3 = createAlchemyWeb3(functions.config().web3.api);
   const addressCertificate = req.params.addressC;
   const addressUser = req.params.addressU;
-  const tokenType = req.params.type;
+  const tokenType = req.params.tokenType;
 
   const manager = new web3.eth.Contract(abi, addressCertificate);
-  
 
   try {
     const caller = await manager.methods.verify(addressUser, tokenType).call();
     const name = await manager.methods.name().call();
+
     const readResult = await admin
-    .firestore()
-    .collection(`Certificate/${address}/tokens`)
-    .doc(tokenId)
-    .get();
-    const readData = await readResult.data();
+      .firestore()
+      .collection(`Certificate/${addressCertificate}/tokens`)
+      .doc(tokenType)
+      .get();
+    const readData = readResult.data();
 
     functions.logger.log(caller);
+    functions.logger.log(readData);
     res.status(200).send(`<!doctype html>
     <head>
       <meta charset="utf-8">
@@ -302,12 +303,17 @@ const shareCertificate = async (req, res) => {
       <meta name="twitter:image" content="${readData.url}">
       <meta property="twitter:url" content="https://certificate-manager.web.app/">
       <meta name="twitter:card" content="summary_large_image">
-
-      <meta http-equiv="refresh" content="1; URL=https://www.bitdegree.org/" />
     </head>
     <body>
       ${"BONG ".repeat(hours)}
       ${caller}
+      <button id="myButton" class="float-left submit-button" >Continue</button>
+
+<script type="text/javascript">
+    document.getElementById("myButton").onclick = function () {
+        location.href = "https://certificate-manager.web.app/";
+    };
+</script>
     </body>
   </html>`);
   } catch (error) {
