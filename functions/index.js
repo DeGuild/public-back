@@ -22,7 +22,10 @@ const express = require("express");
 const cors = require("cors")({ origin: true });
 const app = express();
 
-const mkdirp = require('mkdirp');
+const { abi } = require("./ISkillCertificatePlus.json");
+const { createAlchemyWeb3 } = require("@alch/alchemy-web3");
+
+const mkdirp = require("mkdirp");
 const spawn = require("child-process-promise").spawn;
 const path = require("path");
 const os = require("os");
@@ -58,48 +61,48 @@ const readCertificate = async (req, res) => {
 };
 
 const allCertificates = async (req, res) => {
-   // Grab the text parameter.
-   const address = req.params.address;
-   const tokenId = parseInt(req.params.tokenId, 10);
-   const direction = req.params.direction;
- 
-   let data = [];
-   if (direction === "next") {
-     const startAtSnapshot = admin
-       .firestore()
-       .collection(`Certificate/${address}/tokens`)
-       .orderBy("tokenId", "asc")
-       .startAfter(tokenId);
- 
-     const items = await startAtSnapshot.limit(24).get();
-     items.forEach((doc) => {
-       data.push(doc.data());
-     });
-   } else if (direction === "previous") {
-     const startAtSnapshot = admin
-       .firestore()
-       .collection(`Certificate/${address}/tokens`)
-       .orderBy("tokenId", "desc")
-       .startAfter(tokenId);
- 
-     const items = await startAtSnapshot.limit(24).get();
-     items.forEach((doc) => {
-       data.push(doc.data());
-     });
-   } else {
-     const readResult = await admin
-       .firestore()
-       .collection(`Certificate/${address}/tokens`)
-       .orderBy("tokenId", "asc")
-       .limit(24)
-       .get();
-     // Send back a message that we've successfully written the message3
-     readResult.forEach((doc) => {
-       data.push(doc.data());
-     });
-   }
- 
-   res.json(data.sort());
+  // Grab the text parameter.
+  const address = req.params.address;
+  const tokenId = parseInt(req.params.tokenId, 10);
+  const direction = req.params.direction;
+
+  let data = [];
+  if (direction === "next") {
+    const startAtSnapshot = admin
+      .firestore()
+      .collection(`Certificate/${address}/tokens`)
+      .orderBy("tokenId", "asc")
+      .startAfter(tokenId);
+
+    const items = await startAtSnapshot.limit(24).get();
+    items.forEach((doc) => {
+      data.push(doc.data());
+    });
+  } else if (direction === "previous") {
+    const startAtSnapshot = admin
+      .firestore()
+      .collection(`Certificate/${address}/tokens`)
+      .orderBy("tokenId", "desc")
+      .startAfter(tokenId);
+
+    const items = await startAtSnapshot.limit(24).get();
+    items.forEach((doc) => {
+      data.push(doc.data());
+    });
+  } else {
+    const readResult = await admin
+      .firestore()
+      .collection(`Certificate/${address}/tokens`)
+      .orderBy("tokenId", "asc")
+      .limit(24)
+      .get();
+    // Send back a message that we've successfully written the message3
+    readResult.forEach((doc) => {
+      data.push(doc.data());
+    });
+  }
+
+  res.json(data.sort());
 };
 
 const readMagicScroll = async (req, res) => {
@@ -256,6 +259,34 @@ const readProfile = async (req, res) => {
   }
 };
 
+const shareCertificate = async((req, res) => {
+  const hours = (new Date().getHours() % 12) + 1; // London is UTC + 1hr;
+  const web3 = createAlchemyWeb3(functions.config().web3.api);
+  const addressCertificate = req.params.addressC;
+  const addressUser = req.params.addressU;
+  const tokenType = req.params.type;
+
+  const geniusManager = new web3.eth.Contract(abi, addressCertificate);
+  try {
+    const caller = await geniusManager.methods.verify(addressUser, tokenType);
+    res.status(200).send(`<!doctype html>
+    <head>
+      <title>Time</title>
+      <meta http-equiv="refresh" content="5; URL=https://www.bitdegree.org/" />
+    </head>
+    <body>
+      ${"BONG ".repeat(hours)}
+      ${caller}
+    </body>
+  </html>`);
+  } catch (error) {
+    functions.logger.error("Error while verifying with web3", error);
+    res.status(500).json({
+      message: "ERROR",
+    });
+  }
+});
+
 app.use(cors);
 
 app.get("/readCertificate/:address/:tokenId", readCertificate);
@@ -312,7 +343,7 @@ exports.generateThumbnail = functions.storage
     const metadata = {
       contentType: contentType,
       // To enable Client-side caching you can set the Cache-Control headers here. Uncomment below.
-      'Cache-Control': 'public,max-age=3600',
+      "Cache-Control": "public,max-age=3600",
     };
 
     // Create the temp directory where the storage file will be downloaded.
@@ -362,6 +393,6 @@ exports.generateThumbnail = functions.storage
       .firestore()
       .collection(`images/`)
       .doc(fileUrl)
-      .set({thumbnail: thumbFileUrl });
+      .set({ thumbnail: thumbFileUrl });
     return functions.logger.log("Thumbnail URLs saved to database.");
   });
