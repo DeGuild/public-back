@@ -259,16 +259,19 @@ const readProfile = async (req, res) => {
   }
 };
 
-const shareCertificate = async((req, res) => {
+const shareCertificate = async (req, res) => {
   const hours = (new Date().getHours() % 12) + 1; // London is UTC + 1hr;
   const web3 = createAlchemyWeb3(functions.config().web3.api);
   const addressCertificate = req.params.addressC;
   const addressUser = req.params.addressU;
   const tokenType = req.params.type;
 
-  const geniusManager = new web3.eth.Contract(abi, addressCertificate);
+  const manager = new web3.eth.Contract(abi, addressCertificate);
+  
   try {
-    const caller = await geniusManager.methods.verify(addressUser, tokenType);
+
+    const caller = await manager.methods.verify(addressUser, tokenType);
+
     res.status(200).send(`<!doctype html>
     <head>
       <title>Time</title>
@@ -285,7 +288,7 @@ const shareCertificate = async((req, res) => {
       message: "ERROR",
     });
   }
-});
+};
 
 app.use(cors);
 
@@ -296,6 +299,7 @@ app.get("/readProfile/:address", readProfile);
 
 app.get("/allCertificates/:address/:tokenId/:direction", allCertificates);
 app.get("/allCertificates/:address", allCertificates);
+app.get("/shareCertificate/:addressC/:addressU/:tokenType", shareCertificate)
 
 app.get("/allMagicScrolls/:address/:tokenId/:direction", allMagicScrolls);
 app.get("/allMagicScrolls/:address", allMagicScrolls);
