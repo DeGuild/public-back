@@ -452,6 +452,9 @@ exports.generateThumbnail = functions.storage
 exports.removeDownloadToken = functions.storage
   .object()
   .onFinalize(async (object) => {
+    const bucket = admin.storage().bucket(object.bucket);
+    const contentType = object.contentType; // This is the image MIME type
+
     if (!contentType.startsWith("application/")) {
       return functions.logger.log("This is a zipfile.");
     }
