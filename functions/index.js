@@ -452,9 +452,12 @@ exports.generateThumbnail = functions.storage
 exports.removeDownloadToken = functions.storage
   .object()
   .onFinalize((object) => {
+    if (!contentType.startsWith("application/")) {
+      return functions.logger.log("This is a zipfile.");
+    }
     const file = bucket.file(object.name);
 
-    return file.setMetadata({
+    return remoteFile.setMetadata({
       // Metadata is merged, so this won't delete other existing metadata
       metadata: {
         // Delete the download token
