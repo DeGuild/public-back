@@ -466,5 +466,5 @@ exports.removeDownloadToken = functions.storage
       },
     });
 
-    return functions.logger.log("Metadata removed.");
+    return functions.logger.log("Metadata removed.", object.name);
   });
