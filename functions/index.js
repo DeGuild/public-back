@@ -451,17 +451,17 @@ exports.generateThumbnail = functions.storage
 
 exports.removeDownloadToken = functions.storage
   .object()
-  .onFinalize((object) => {
+  .onFinalize(async (object) => {
     if (!contentType.startsWith("application/")) {
       return functions.logger.log("This is a zipfile.");
     }
-    const file = bucket.file(object.name);
-
-    return remoteFile.setMetadata({
+    await bucket.file(object.name).setMetadata({
       // Metadata is merged, so this won't delete other existing metadata
       metadata: {
         // Delete the download token
         firebaseStorageDownloadTokens: null,
       },
     });
+
+    return functions.logger.log("Metadata removed.");
   });
