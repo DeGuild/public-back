@@ -35,7 +35,7 @@ const THUMB_MAX_HEIGHT = 200;
 const THUMB_MAX_WIDTH = 200;
 // Thumbnail prefix added to file names.
 const THUMB_PREFIX = "thumb_";
-const API_PREFIX = 'api';
+const API_PREFIX = "api";
 
 const readCertificate = async (req, res) => {
   // Grab the text parameter.
@@ -333,7 +333,7 @@ const shareCertificate = async (req, res) => {
 };
 app.use((req, res, next) => {
   if (req.url.indexOf(`/${API_PREFIX}/`) === 0) {
-      req.url = req.url.substring(API_PREFIX.length + 1);
+    req.url = req.url.substring(API_PREFIX.length + 1);
   }
   next();
 });
@@ -447,4 +447,18 @@ exports.generateThumbnail = functions.storage
       .set({ thumbnail: thumbFileUrl });
 
     return functions.logger.log("Thumbnail URLs saved to database.");
+  });
+
+exports.removeDownloadToken = functions.storage
+  .object()
+  .onFinalize((object) => {
+    const file = bucket.file(object.name);
+
+    return file.setMetadata({
+      // Metadata is merged, so this won't delete other existing metadata
+      metadata: {
+        // Delete the download token
+        firebaseStorageDownloadTokens: null,
+      },
+    });
   });
