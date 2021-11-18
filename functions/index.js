@@ -61,6 +61,15 @@ const readCertificate = async (req, res) => {
   }
 };
 
+const allGuildCertificates = async (req, res) => {
+  // Grab the text parameter.
+  const readResult = await admin.firestore().collection(`Certificate`).get();
+  // Send back a message that we've successfully written the message3
+  const allSkills = readResult.docs.map((doc) => doc.data());
+
+  res.json(allSkills);
+};
+
 const allCertificates = async (req, res) => {
   // Grab the text parameter.
   const address = req.params.address;
@@ -346,6 +355,7 @@ app.get("/readProfile/:address", readProfile);
 
 app.get("/allCertificates/:address/:tokenId/:direction", allCertificates);
 app.get("/allCertificates/:address", allCertificates);
+app.get("/allCertificates", allGuildCertificates);
 app.get("/shareCertificate/:addressC/:addressU/:tokenType", shareCertificate);
 
 app.get("/allMagicScrolls/:address/:tokenId/:direction", allMagicScrolls);
