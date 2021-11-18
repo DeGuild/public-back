@@ -65,7 +65,14 @@ const allGuildCertificates = async (req, res) => {
   // Grab the text parameter.
   const readResult = await admin.firestore().collection(`Certificate`).get();
   // Send back a message that we've successfully written the message3
-  const allSkills = readResult.docs.map((doc) => doc.data());
+  const allSkills = Promise.all(readResult.docs.map(
+    async (doc) =>
+      await admin
+        .firestore()
+        .collection(`Certificate/${doc}/tokens`)
+        .orderBy("tokenId", "asc")
+        .startAfter(tokenId)
+  ));
 
   res.json(allSkills);
 };
