@@ -134,6 +134,32 @@ const allCertificates = async (req, res) => {
   res.json(data.sort());
 };
 
+const allCertificatesWeb3 = async (req, res) => {
+  // Grab the text parameter.
+  const readResult = await admin.firestore().collection(`Certificate`).get();
+  // Send back a message that we've successfully written the message3
+  functions.logger.log(readResult.docs);
+  readResult.docs.forEach((doc) => {
+    functions.logger.log(doc.id);
+  });
+
+  const allSkills = await Promise.all(
+    readResult.docs.map(async (doc) => {
+      let data = [];
+      const snapshot = await admin
+        .firestore()
+        .collection(`Certificate/${doc.id}/tokens`)
+        .orderBy("tokenId", "asc")
+        .get();
+      snapshot.forEach((doc) => {
+        data.push(doc.data());
+      });
+      return data.sort();
+    })
+  );
+  res.json(allSkills);
+};
+
 const readMagicScroll = async (req, res) => {
   // Grab the text parameter.
   const address = req.params.address;
@@ -344,6 +370,52 @@ const allJobs = async (req, res) => {
   res.json(data.sort());
 };
 
+const allJobsWeb3 = async (req, res) => {
+  // Grab the text parameter.
+  const address = req.params.address;
+  const tokenId = parseInt(req.params.tokenId, 10);
+  const direction = req.params.direction;
+
+  let data = [];
+  if (direction === "next") {
+    const startAtSnapshot = admin
+      .firestore()
+      .collection(`DeGuild/${address}/tokens`)
+      .orderBy("tokenId", "asc")
+      .startAfter(tokenId);
+
+    const items = await startAtSnapshot.limit(24).get();
+    items.forEach((doc) => {
+      data.push(doc.data());
+    });
+  } else if (direction === "previous") {
+    const startAtSnapshot = admin
+      .firestore()
+      .collection(`DeGuild/${address}/tokens`)
+      .orderBy("tokenId", "desc")
+      .startAfter(tokenId);
+
+    const items = await startAtSnapshot.limit(24).get();
+    items.forEach((doc) => {
+      data.push(doc.data());
+    });
+  } else {
+    const readResult = await admin
+      .firestore()
+      .collection(`DeGuild/${address}/tokens`)
+      .orderBy("tokenId", "asc")
+      .limit(24)
+      .get();
+    // Send back a message that we've successfully written the message3
+    readResult.forEach((doc) => {
+      data.push(doc.data());
+    });
+    // readResult.map
+  }
+
+  res.json(data.sort());
+};
+
 const readProfile = async (req, res) => {
   const address = req.params.address;
   const readResult = await admin
@@ -455,12 +527,19 @@ app.get("/allCertificates/:address", allCertificates);
 app.get("/allCertificates", allGuildCertificates);
 app.get("/shareCertificate/:addressC/:addressU/:tokenType", shareCertificate);
 
+// TODO: Work on this
+app.get("/certificates/:addressM/:addressU/:page", allCertificatesWeb3);
+
 app.get("/allMagicScrolls/:address/:tokenId/:direction", allMagicScrolls);
 app.get("/allMagicScrolls/:address", allMagicScrolls);
 app.get("/magicScrolls/:addressM/:addressU/:page", allMagicScrollsWeb3);
 
 app.get("/allJobs/:address/:tokenId/:direction", allJobs);
 app.get("/allJobs/:address/", allJobs);
+
+// TODO: Work on this
+app.get("/jobs/:address/:addressU", allJobsWeb3);
+app.get("/jobs/search/:address/:addressU/:title", allJobsWeb3);
 
 exports.app = functions.https.onRequest(app);
 
