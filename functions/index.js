@@ -232,7 +232,7 @@ const allMagicScrollsWeb3 = async (req, res) => {
   functions.logger.log(slicedTypes);
 
   //pull data to scrolls
-  const scrollsTypesOnChain = await Promise.all(
+  const scrollsTypesCombined = await Promise.all(
     slicedTypes.map(async (event) => {
       try {
         const isPurchaseable = await magicShop.methods
@@ -242,12 +242,20 @@ const allMagicScrollsWeb3 = async (req, res) => {
           .scrollTypeInfo(event.returnValues.scrollType)
           .call();
 
+        const fromDb = await admin
+        .firestore()
+        .collection(`MagicShop/${addressMagicShop}/tokens`)
+        .doc(event.returnValues.scrollType)
+        .get();
+
+        const offChain = fromDb ? offChain.data() : {};
+
         const token = {
           tokenId: event.returnValues.scrollType,
-          url: null,
-          name: null,
-          courseId: null,
-          description: null,
+          url: offChain.url,
+          name: offChain.name,
+          courseId: offChain.courseId,
+          description: offChain.description,
           isPurchaseable,
           price: web3.utils.fromWei(info[1], "ether"),
           prerequisiteId: info[2],
@@ -262,23 +270,11 @@ const allMagicScrollsWeb3 = async (req, res) => {
       }
     })
   );
-  functions.logger.log(scrollsTypesOnChain);
-
-  let data = [];
-  const startAtSnapshot = admin
-    .firestore()
-    .collection(`MagicShop/${addressMagicShop}/tokens`)
-    .orderBy("tokenId", "asc")
-    .startAfter(scrollsTypesOnChain[0].tokenId);
-
-  const items = await startAtSnapshot.limit(24).get();
-  items.forEach((doc) => {
-    data.push(doc.data());
-  });
-  functions.logger.log(data);
+  functions.logger.log(scrollsTypesCombined);
+  //fit data offchain to onchain
 
 
-  res.json(data.sort());
+  res.json(scrollsTypesCombined);
 };
 
 const readJob = async (req, res) => {
