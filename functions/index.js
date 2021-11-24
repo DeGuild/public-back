@@ -248,7 +248,7 @@ const allMagicScrollsWeb3 = async (req, res) => {
         .doc(event.returnValues.scrollType)
         .get();
 
-        const offChain = fromDb ? offChain.data() : {};
+        const offChain = fromDb ? fromDb.data() : {};
 
         const token = {
           tokenId: event.returnValues.scrollType,
