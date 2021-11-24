@@ -22,7 +22,9 @@ const express = require("express");
 const cors = require("cors")({ origin: true });
 const app = express();
 
-const { abi } = require("./ISkillCertificatePlus.json");
+const skillCertificatePlusABI = require("./ISkillCertificatePlus.json").abi;
+const deGuildPlusABI = require("./IDeGuildPlus.json").abi;
+const magicScrollsPlusABI = require("./IMagicScrollsPlus.json").abi;
 const { createAlchemyWeb3 } = require("@alch/alchemy-web3");
 
 const mkdirp = require("mkdirp");
@@ -199,6 +201,86 @@ const allMagicScrolls = async (req, res) => {
   res.json(data.sort());
 };
 
+const allMagicScrollsWeb3 = async (req, res) => {
+  // Grab the text parameter.
+  const web3 = createAlchemyWeb3(functions.config().web3.api);
+  const addressMagicShop = req.params.addressM;
+  const addressUser = req.params.addressU;
+  const page = req.params.page;
+
+  const magicShop = new web3.eth.Contract(
+    magicScrollsPlusABI,
+    addressMagicShop
+  );
+
+  // from the block when the contract is deployed
+  const scrollsTypes = await magicShop.getPastEvents("ScrollAdded", {
+    fromBlock: 0,
+    toBlock: "latest",
+  });
+
+  functions.logger.log(scrollsTypes);
+  let slicedTypes;
+  if (page * 8 < scrollsTypes.length) {
+    slicedTypes = scrollsTypes.slice(page * 8, (page + 1) * 8);
+  } else {
+    res.status(404).json({
+      message: "Out of page",
+    });
+    return;
+  }
+  functions.logger.log(slicedTypes);
+
+  //pull data to scrolls
+  const scrollsTypesOnChain = await Promise.all(
+    slicedTypes.map(async (event) => {
+      try {
+        const isPurchaseable = await magicShop.methods
+          .isPurchasableScroll(event.returnValues.scrollType, addressUser)
+          .call();
+        const info = await magicShop.methods
+          .scrollTypeInfo(event.returnValues.scrollType)
+          .call();
+
+        const token = {
+          tokenId: event.returnValues.scrollType,
+          url: null,
+          name: null,
+          courseId: null,
+          description: null,
+          isPurchaseable,
+          price: web3.utils.fromWei(info[1], "ether"),
+          prerequisiteId: info[2],
+          prerequisite: info[3],
+          hasLesson: info[4],
+          hasPrerequisite: info[5],
+          available: info[6],
+        };
+        return token;
+      } catch (err){
+        return null;
+      }
+    })
+  );
+  functions.logger.log(scrollsTypesOnChain);
+
+  let data = [];
+  const startAtSnapshot = admin
+    .firestore()
+    .collection(`MagicShop/${addressMagicShop}/tokens`)
+    .orderBy("tokenId", "asc")
+    .startAfter(scrollsTypesOnChain[0].tokenId);
+
+  const items = await startAtSnapshot.limit(24).get();
+  items.forEach((doc) => {
+    data.push(doc.data());
+  });
+  functions.logger.log(data);
+
+
+  res.json(data.sort());
+};
+
 const readJob = async (req, res) => {
   const address = req.params.address;
   const tokenId = req.params.tokenId;
@@ -287,13 +369,15 @@ const readProfile = async (req, res) => {
 };
 
 const shareCertificate = async (req, res) => {
-  const hours = (new Date().getHours() % 12) + 1; // London is UTC + 1hr;
   const web3 = createAlchemyWeb3(functions.config().web3.api);
   const addressCertificate = req.params.addressC;
   const addressUser = req.params.addressU;
   const tokenType = req.params.tokenType;
 
-  const manager = new web3.eth.Contract(abi, addressCertificate);
+  const manager = new web3.eth.Contract(
+    skillCertificatePlusABI,
+    addressCertificate
+  );
 
   try {
     const caller = await manager.methods.verify(addressUser, tokenType).call();
@@ -377,6 +461,7 @@ app.get("/shareCertificate/:addressC/:addressU/:tokenType", shareCertificate);
 
 app.get("/allMagicScrolls/:address/:tokenId/:direction", allMagicScrolls);
 app.get("/allMagicScrolls/:address", allMagicScrolls);
+app.get("/magicScrolls/:addressM/:addressU/:page", allMagicScrollsWeb3);
 
 app.get("/allJobs/:address/:tokenId/:direction", allJobs);
 app.get("/allJobs/:address/", allJobs);
