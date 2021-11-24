@@ -235,7 +235,7 @@ const allMagicScrollsWeb3 = async (req, res) => {
   const scrollsTypesCombined = await Promise.all(
     slicedTypes.map(async (event) => {
       try {
-        const isPurchaseable = await magicShop.methods
+        const isPurchasable = await magicShop.methods
           .isPurchasableScroll(event.returnValues.scrollType, addressUser)
           .call();
         const info = await magicShop.methods
@@ -256,7 +256,7 @@ const allMagicScrollsWeb3 = async (req, res) => {
           name: offChain.name,
           courseId: offChain.courseId,
           description: offChain.description,
-          isPurchaseable,
+          isPurchasable,
           price: web3.utils.fromWei(info[1], "ether"),
           prerequisiteId: info[2],
           prerequisite: info[3],
