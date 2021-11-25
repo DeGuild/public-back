@@ -347,9 +347,21 @@ const pageMagicScrollsWeb3Inventory = async (req, res) => {
     addressMagicShop
   );
 
+  const consumed = await magicShop.getPastEvents("ScrollConsumed", {
+    fromBlock: 0,
+    toBlock: "latest",
+  });
+
+  const burned = await magicShop.getPastEvents("ScrollBurned", {
+    fromBlock: 0,
+    toBlock: "latest",
+  });
+  functions.logger.log("c", consumed);
+  functions.logger.log("b", burned);
+
   // from the block when the contract is deployed
   const scrollsEvent = await magicShop.getPastEvents("ScrollBought", {
-    filter: {buyer: addressUser},
+    filter: { buyer: addressUser },
     fromBlock: 0,
     toBlock: "latest",
   });
@@ -383,6 +395,18 @@ const pageMagicScrollsWeb3Inventory = async (req, res) => {
           .doc(event.returnValues.scrollType)
           .get();
 
+        const isConsume = consumed.filter(
+          (ele) => ele.returnValues.scrollId === event.returnValues.scrollId
+        );
+        const isBurned = burned.filter(
+          (ele) => ele.returnValues.scrollId === event.returnValues.scrollId
+        );
+        let state = 1;
+        if (isConsume) {
+          state = 2;
+        } else if (isBurned) {
+          state = 3;
+        }
         const offChain = fromDb ? fromDb.data() : {};
 
         const token = {
@@ -392,6 +416,7 @@ const pageMagicScrollsWeb3Inventory = async (req, res) => {
           courseId: offChain.courseId,
           description: offChain.description,
           isPurchasable,
+          state,
           price: web3.utils.fromWei(info[1], "ether"),
           prerequisiteId: info[2],
           prerequisite: info[3],
@@ -452,7 +477,7 @@ const allMagicScrollsWeb3 = async (req, res) => {
       }
     })
   );
-  functions.logger.log('i should return?', scrollsTypesCombined);
+  functions.logger.log("i should return?", scrollsTypesCombined);
   //fit data offchain to onchain
 
   res.json(scrollsTypesCombined);
@@ -463,10 +488,7 @@ const getAllCM = async (req, res) => {
   const web3 = createAlchemyWeb3(functions.config().web3.api);
 
   const addressShop = req.params.addressM;
-  const magicShop = new web3.eth.Contract(
-    magicScrollsPlusABI,
-    addressShop
-  );
+  const magicShop = new web3.eth.Contract(magicScrollsPlusABI, addressShop);
 
   // from the block when the contract is deployed
   const events = await magicShop.getPastEvents("ApprovalForCM", {
@@ -474,7 +496,7 @@ const getAllCM = async (req, res) => {
     toBlock: "latest",
   });
 
-  functions.logger.log('i should return?', events);
+  functions.logger.log("i should return?", events);
 
   const certificateManager = events.map((event) => event.returnValues.account);
 
@@ -724,7 +746,10 @@ app.get("/allMagicScrolls/:address", allMagicScrolls);
 //New
 app.get("/magicScrolls/:addressM/:addressU/:page", pageMagicScrollsWeb3);
 app.get("/magicScrolls/:addressM", allMagicScrollsWeb3);
-app.get("/magicScrolls/inventory/:addressM/:addressU/:page", pageMagicScrollsWeb3Inventory);
+app.get(
+  "/magicScrolls/inventory/:addressM/:addressU/:page",
+  pageMagicScrollsWeb3Inventory
+);
 app.get("/manager/:addressM", getAllCM);
 
 //old
