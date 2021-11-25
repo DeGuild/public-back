@@ -94,6 +94,8 @@ const allGuildCertificates = async (req, res) => {
 
 const allCourses = async (req, res) => {
   // Grab the text parameter.
+  const web3 = createAlchemyWeb3(functions.config().web3.api);
+
   const readResult = await admin.firestore().collection(`Certificate`).get();
   // Send back a message that we've successfully written the message3
   readResult.docs.forEach((doc) => {
@@ -124,7 +126,7 @@ const allCourses = async (req, res) => {
         skillCertificatePlusABI,
         obj.address
       );
-      const typeAccepted = await certificateManager.methods.typeAccepted(obj.tokenId).call();
+      const typeAccepted = await certificateManager.methods.typeAccepted(obj.tokenId.toString()).call();
       obj.typeAccepted = typeAccepted;
       return obj;
     })
@@ -445,7 +447,8 @@ const pageMagicScrollsWeb3Inventory = async (req, res) => {
         let state = 1;
         if (isConsume.length > 0) {
           state = 2;
-        } else if (isBurned.length > 0) {
+        }
+        if (isBurned.length > 0) {
           state = 3;
         }
         const offChain = fromDb ? fromDb.data() : {};
