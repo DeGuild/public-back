@@ -335,6 +335,81 @@ const pageMagicScrollsWeb3 = async (req, res) => {
 
   res.json(scrollsTypesCombined);
 };
+const pageMagicScrollsWeb3Inventory = async (req, res) => {
+  // Grab the text parameter.
+  const web3 = createAlchemyWeb3(functions.config().web3.api);
+  const addressMagicShop = req.params.addressM;
+  const addressUser = req.params.addressU;
+  const page = req.params.page;
+
+  const magicShop = new web3.eth.Contract(
+    magicScrollsPlusABI,
+    addressMagicShop
+  );
+
+  // from the block when the contract is deployed
+  const scrollsEvent = await magicShop.getPastEvents("ScrollBought", {
+    filter: {buyer: addressUser},
+    fromBlock: 0,
+    toBlock: "latest",
+  });
+
+  functions.logger.log(scrollsEvent);
+  let slicedEvents;
+  if (page * 8 < scrollsEvent.length) {
+    slicedEvents = scrollsEvent.slice(page * 8, (page + 1) * 8);
+  } else {
+    res.status(404).json({
+      message: "Out of page",
+    });
+    return;
+  }
+  functions.logger.log(slicedEvents);
+
+  //pull data to scrolls
+  const scrollsCombined = await Promise.all(
+    slicedEvents.map(async (event) => {
+      try {
+        const isPurchasable = await magicShop.methods
+          .isPurchasableScroll(event.returnValues.scrollType, addressUser)
+          .call();
+        const info = await magicShop.methods
+          .scrollTypeInfo(event.returnValues.scrollType)
+          .call();
+
+        const fromDb = await admin
+          .firestore()
+          .collection(`MagicShop/${addressMagicShop}/tokens`)
+          .doc(event.returnValues.scrollType)
+          .get();
+
+        const offChain = fromDb ? fromDb.data() : {};
+
+        const token = {
+          tokenId: event.returnValues.scrollId,
+          url: offChain.url,
+          name: offChain.name,
+          courseId: offChain.courseId,
+          description: offChain.description,
+          isPurchasable,
+          price: web3.utils.fromWei(info[1], "ether"),
+          prerequisiteId: info[2],
+          prerequisite: info[3],
+          hasLesson: info[4],
+          hasPrerequisite: info[5],
+          available: info[6],
+        };
+        return token;
+      } catch (err) {
+        return null;
+      }
+    })
+  );
+  functions.logger.log(scrollsCombined);
+  //fit data offchain to onchain
+
+  res.json(scrollsCombined);
+};
 const allMagicScrollsWeb3 = async (req, res) => {
   // Grab the text parameter.
   const web3 = createAlchemyWeb3(functions.config().web3.api);
@@ -649,6 +724,7 @@ app.get("/allMagicScrolls/:address", allMagicScrolls);
 //New
 app.get("/magicScrolls/:addressM/:addressU/:page", pageMagicScrollsWeb3);
 app.get("/magicScrolls/:addressM", allMagicScrollsWeb3);
+app.get("/magicScrolls/inventory/:addressM/:addressU/:page", pageMagicScrollsWeb3Inventory);
 app.get("/manager/:addressM", getAllCM);
 
 //old
