@@ -83,27 +83,53 @@ const allGuildCertificates = async (req, res) => {
         .collection(`Certificate/${doc.id}/tokens`)
         .orderBy("tokenId", "asc")
         .get();
-      snapshot.forEach((shot) => {
-        data.push(shot.data());
+      snapshot.forEach((doc) => {
+        data.push(doc.data());
       });
-      const sorted = data.sort();
-      const withTypeAccept = await Promise.all(
-        sorted.map(async (token) => {
-          const obj = token;
-          const certificateManager = new web3.eth.Contract(
-            skillCertificatePlusABI,
-            obj.address
-          );
-          obj.typeAccepted = await certificateManager.methods
-            .typeAccepted(obj.tokenId)
-            .call();
-          return obj;
-        })
-      );
-      return withTypeAccept;
+      return data.sort();
     })
   );
   res.json(allSkills);
+};
+
+const allCourses = async (req, res) => {
+  // Grab the text parameter.
+  const readResult = await admin.firestore().collection(`Certificate`).get();
+  // Send back a message that we've successfully written the message3
+  functions.logger.log(readResult.docs);
+  readResult.docs.forEach((doc) => {
+    functions.logger.log(doc.id);
+  });
+
+  const allSkills = await Promise.all(
+    readResult.docs.map(async (doc) => {
+      let data = [];
+      const snapshot = await admin
+        .firestore()
+        .collection(`Certificate/${doc.id}/tokens`)
+        .orderBy("tokenId", "asc")
+        .get();
+      snapshot.forEach((doc) => {
+        data.push(doc.data());
+      });
+      return data.sort();
+    })
+  );
+  const courses = [].concat.apply(...allSkills);
+  const coursesWithType = await Promise.all(
+    courses.map(async (course) => {
+      const obj = course;
+      const certificateManager = new web3.eth.Contract(
+        skillCertificatePlusABI,
+        obj.address
+      );
+      const typeAccepted = await certificateManager.methods.typeAccepted(obj.tokenId).call();
+      obj['typeAccepted'] = typeAccepted;
+      return obj;
+    })
+  );
+
+  res.json(coursesWithType);
 };
 
 const allCertificates = async (req, res) => {
@@ -747,6 +773,7 @@ app.get("/readProfile/:address", readProfile);
 app.get("/allCertificates/:address/:tokenId/:direction", allCertificates);
 app.get("/allCertificates/:address", allCertificates);
 app.get("/allCertificates", allGuildCertificates);
+app.get("/courses", allCourses);
 
 app.get("/shareCertificate/:addressC/:addressU/:tokenType", shareCertificate);
 
