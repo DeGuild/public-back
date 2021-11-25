@@ -261,7 +261,7 @@ const allMagicScrolls = async (req, res) => {
   res.json(data.sort());
 };
 
-const allMagicScrollsWeb3 = async (req, res) => {
+const pageMagicScrollsWeb3 = async (req, res) => {
   // Grab the text parameter.
   const web3 = createAlchemyWeb3(functions.config().web3.api);
   const addressMagicShop = req.params.addressM;
@@ -323,6 +323,52 @@ const allMagicScrollsWeb3 = async (req, res) => {
           hasLesson: info[4],
           hasPrerequisite: info[5],
           available: info[6],
+        };
+        return token;
+      } catch (err) {
+        return null;
+      }
+    })
+  );
+  functions.logger.log(scrollsTypesCombined);
+  //fit data offchain to onchain
+
+  res.json(scrollsTypesCombined);
+};
+const allMagicScrollsWeb3 = async (req, res) => {
+  // Grab the text parameter.
+  const web3 = createAlchemyWeb3(functions.config().web3.api);
+  const addressMagicShop = req.params.addressM;
+
+  const magicShop = new web3.eth.Contract(
+    magicScrollsPlusABI,
+    addressMagicShop
+  );
+
+  // from the block when the contract is deployed
+  const scrollsTypes = await magicShop.getPastEvents("ScrollAdded", {
+    fromBlock: 0,
+    toBlock: "latest",
+  });
+
+  //pull data to scrolls
+  const scrollsTypesCombined = await Promise.all(
+    scrollsTypes.map(async (event) => {
+      try {
+        const fromDb = await admin
+          .firestore()
+          .collection(`MagicShop/${addressMagicShop}/tokens`)
+          .doc(event.returnValues.scrollType)
+          .get();
+
+        const offChain = fromDb ? fromDb.data() : {};
+
+        const token = {
+          tokenId: event.returnValues.scrollType,
+          url: offChain.url,
+          name: offChain.name,
+          courseId: offChain.courseId,
+          description: offChain.description,
         };
         return token;
       } catch (err) {
@@ -593,8 +639,9 @@ app.get("/certificates/:addressM/:addressU/:page", allCertificatesWeb3);
 
 app.get("/allMagicScrolls/:address/:tokenId/:direction", allMagicScrolls);
 app.get("/allMagicScrolls/:address", allMagicScrolls);
-app.get("/magicScrolls/:addressM/:addressU/:page", allMagicScrollsWeb3);
-shop.get("/maanager/:addressShop", getAllCM);
+app.get("/magicScrolls/:addressM/:addressU/:page", pageMagicScrollsWeb3);
+app.get("/magicScrolls/:addressM/", allMagicScrollsWeb3);
+app.get("/manager/:addressShop", getAllCM);
 
 app.get("/allJobs/:address/:tokenId/:direction", allJobs);
 app.get("/allJobs/:address/", allJobs);
