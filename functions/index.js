@@ -96,7 +96,6 @@ const allCourses = async (req, res) => {
   // Grab the text parameter.
   const readResult = await admin.firestore().collection(`Certificate`).get();
   // Send back a message that we've successfully written the message3
-  functions.logger.log(readResult.docs);
   readResult.docs.forEach((doc) => {
     functions.logger.log(doc.id);
   });
@@ -115,7 +114,9 @@ const allCourses = async (req, res) => {
       return data.sort();
     })
   );
-  const courses = [].concat.apply(...allSkills);
+  const courses = [].concat.apply([], allSkills);
+  functions.logger.log('courses', courses);
+
   const coursesWithType = await Promise.all(
     courses.map(async (course) => {
       const obj = course;
@@ -124,7 +125,7 @@ const allCourses = async (req, res) => {
         obj.address
       );
       const typeAccepted = await certificateManager.methods.typeAccepted(obj.tokenId).call();
-      obj['typeAccepted'] = typeAccepted;
+      obj.typeAccepted = typeAccepted;
       return obj;
     })
   );
