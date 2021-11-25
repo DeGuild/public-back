@@ -350,6 +350,7 @@ const allMagicScrollsWeb3 = async (req, res) => {
     fromBlock: 0,
     toBlock: "latest",
   });
+  functions.logger.log(scrollsTypes);
 
   //pull data to scrolls
   const scrollsTypesCombined = await Promise.all(
@@ -386,10 +387,10 @@ const getAllCM = async (req, res) => {
   // Grab the text parameter.
   const web3 = createAlchemyWeb3(functions.config().web3.api);
 
-  const addressShop = req.params.addressShop;
+  const addressShop = req.params.addressM;
   const magicShop = new web3.eth.Contract(
     magicScrollsPlusABI,
-    addressMagicShop
+    addressShop
   );
 
   // from the block when the contract is deployed
@@ -397,6 +398,8 @@ const getAllCM = async (req, res) => {
     fromBlock: 0,
     toBlock: "latest",
   });
+
+  functions.logger.log(events);
 
   const certificateManager = events.map((event) => event.returnValues.account);
 
@@ -645,8 +648,8 @@ app.get("/allMagicScrolls/:address", allMagicScrolls);
 
 //New
 app.get("/magicScrolls/:addressM/:addressU/:page", pageMagicScrollsWeb3);
-app.get("/magicScrolls/:addressM/", allMagicScrollsWeb3);
-app.get("/manager/:addressShop", getAllCM);
+app.get("/magicScrolls/:addressM", allMagicScrollsWeb3);
+app.get("/manager/:addressM", getAllCM);
 
 //old
 app.get("/allJobs/:address/:tokenId/:direction", allJobs);
