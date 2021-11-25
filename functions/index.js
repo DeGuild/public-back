@@ -377,7 +377,7 @@ const allMagicScrollsWeb3 = async (req, res) => {
       }
     })
   );
-  functions.logger.log(scrollsTypesCombined);
+  functions.logger.log('i should return?', scrollsTypesCombined);
   //fit data offchain to onchain
 
   res.json(scrollsTypesCombined);
@@ -399,7 +399,7 @@ const getAllCM = async (req, res) => {
     toBlock: "latest",
   });
 
-  functions.logger.log(events);
+  functions.logger.log('i should return?', events);
 
   const certificateManager = events.map((event) => event.returnValues.account);
 
