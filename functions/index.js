@@ -161,6 +161,13 @@ const allCertificatesWeb3 = async (req, res) => {
           toBlock: "latest",
         }
       );
+      // verify again
+      const caller = await certificateManager.methods
+        .verify(
+          mintedCertificate.returnValues.student,
+          mintedCertificate.returnValues.typeId
+        )
+        .call();
       return mintedCertificate.returnValues;
     })
   );
@@ -181,7 +188,7 @@ const allCertificatesWeb3 = async (req, res) => {
   functions.logger.log(slicedSkills);
 
   //pull data to scrolls
-  
+
   //fit data offchain to onchain
 
   res.json(skillList);
@@ -327,6 +334,34 @@ const allMagicScrollsWeb3 = async (req, res) => {
   //fit data offchain to onchain
 
   res.json(scrollsTypesCombined);
+};
+
+const getAllCM = async (req, res) => {
+  // Grab the text parameter.
+
+  const addressShop = req.body.addressShop;
+
+  // Push the new message into Firestore using the Firebase Admin SDK.
+
+  // Send back a message that we've successfully written the message
+  const readResult = await admin
+    .firestore()
+    .collection(`MagicShop/${addressShop}/managers`)
+    .get();
+
+  const allAddress = [];
+
+  readResult.docs.forEach((doc) => {
+    allAddress.push(doc.id);
+  });
+
+  if (allAddress.length > 0) {
+    res.json(allAddress);
+  } else {
+    res.status(404).json({
+      message: `${addressShop} has no approved manager!`,
+    });
+  }
 };
 
 const readJob = async (req, res) => {
@@ -535,6 +570,7 @@ const shareCertificate = async (req, res) => {
     });
   }
 };
+
 app.use((req, res, next) => {
   if (req.url.indexOf(`/${API_PREFIX}/`) === 0) {
     req.url = req.url.substring(API_PREFIX.length + 1);
@@ -559,6 +595,7 @@ app.get("/certificates/:addressM/:addressU/:page", allCertificatesWeb3);
 app.get("/allMagicScrolls/:address/:tokenId/:direction", allMagicScrolls);
 app.get("/allMagicScrolls/:address", allMagicScrolls);
 app.get("/magicScrolls/:addressM/:addressU/:page", allMagicScrollsWeb3);
+shop.get("/maanager/:addressShop", getAllCM);
 
 app.get("/allJobs/:address/:tokenId/:direction", allJobs);
 app.get("/allJobs/:address/", allJobs);
