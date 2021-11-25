@@ -22,9 +22,9 @@ const express = require("express");
 const cors = require("cors")({ origin: true });
 const app = express();
 
-const skillCertificatePlusABI = require("./ISkillCertificatePlus.json").abi;
-const deGuildPlusABI = require("./IDeGuildPlus.json").abi;
-const magicScrollsPlusABI = require("./IMagicScrollsPlus.json").abi;
+const skillCertificatePlusABI = require("./contracts/SkillCertificates/V2/ISkillCertificate+.sol/ISkillCertificatePlus.json").abi;
+const deGuildPlusABI = require("./contracts/DeGuild/V2/IDeGuild+.sol/IDeGuildPlus.json").abi;
+const magicScrollsPlusABI = require("./contracts/MagicShop/V2/IMagicScrolls+.sol/IMagicScrollsPlus.json").abi;
 const { createAlchemyWeb3 } = require("@alch/alchemy-web3");
 
 const mkdirp = require("mkdirp");
