@@ -402,9 +402,9 @@ const pageMagicScrollsWeb3Inventory = async (req, res) => {
           (ele) => ele.returnValues.scrollId === event.returnValues.scrollId
         );
         let state = 1;
-        if (isConsume) {
+        if (isConsume.length > 0) {
           state = 2;
-        } else if (isBurned) {
+        } else if (isBurned.length > 0) {
           state = 3;
         }
         const offChain = fromDb ? fromDb.data() : {};
