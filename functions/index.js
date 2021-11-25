@@ -629,20 +629,26 @@ app.get("/readMagicScroll/:address/:tokenId", readMagicScroll);
 app.get("/readJob/:address/:tokenId", readJob);
 app.get("/readProfile/:address", readProfile);
 
+//old
 app.get("/allCertificates/:address/:tokenId/:direction", allCertificates);
 app.get("/allCertificates/:address", allCertificates);
 app.get("/allCertificates", allGuildCertificates);
+
 app.get("/shareCertificate/:addressC/:addressU/:tokenType", shareCertificate);
 
 // TODO: Work on this
 app.get("/certificates/:addressM/:addressU/:page", allCertificatesWeb3);
 
+//Old
 app.get("/allMagicScrolls/:address/:tokenId/:direction", allMagicScrolls);
 app.get("/allMagicScrolls/:address", allMagicScrolls);
+
+//New
 app.get("/magicScrolls/:addressM/:addressU/:page", pageMagicScrollsWeb3);
 app.get("/magicScrolls/:addressM/", allMagicScrollsWeb3);
 app.get("/manager/:addressShop", getAllCM);
 
+//old
 app.get("/allJobs/:address/:tokenId/:direction", allJobs);
 app.get("/allJobs/:address/", allJobs);
 
