@@ -338,25 +338,24 @@ const allMagicScrollsWeb3 = async (req, res) => {
 
 const getAllCM = async (req, res) => {
   // Grab the text parameter.
+  const web3 = createAlchemyWeb3(functions.config().web3.api);
 
-  const addressShop = req.body.addressShop;
+  const addressShop = req.params.addressShop;
+  const magicShop = new web3.eth.Contract(
+    magicScrollsPlusABI,
+    addressMagicShop
+  );
 
-  // Push the new message into Firestore using the Firebase Admin SDK.
-
-  // Send back a message that we've successfully written the message
-  const readResult = await admin
-    .firestore()
-    .collection(`MagicShop/${addressShop}/managers`)
-    .get();
-
-  const allAddress = [];
-
-  readResult.docs.forEach((doc) => {
-    allAddress.push(doc.id);
+  // from the block when the contract is deployed
+  const events = await magicShop.getPastEvents("ApprovalForCM", {
+    fromBlock: 0,
+    toBlock: "latest",
   });
 
-  if (allAddress.length > 0) {
-    res.json(allAddress);
+  const certificateManager = events.map((event) => event.returnValues.account);
+
+  if (certificateManager.length > 0) {
+    res.json(certificateManager);
   } else {
     res.status(404).json({
       message: `${addressShop} has no approved manager!`,
