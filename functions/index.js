@@ -22,9 +22,12 @@ const express = require("express");
 const cors = require("cors")({ origin: true });
 const app = express();
 
-const skillCertificatePlusABI = require("./contracts/SkillCertificates/V2/ISkillCertificate+.sol/ISkillCertificatePlus.json").abi;
-const deGuildPlusABI = require("./contracts/DeGuild/V2/IDeGuild+.sol/IDeGuildPlus.json").abi;
-const magicScrollsPlusABI = require("./contracts/MagicShop/V2/IMagicScrolls+.sol/IMagicScrollsPlus.json").abi;
+const skillCertificatePlusABI =
+  require("./contracts/SkillCertificates/V2/ISkillCertificate+.sol/ISkillCertificatePlus.json").abi;
+const deGuildPlusABI =
+  require("./contracts/DeGuild/V2/IDeGuild+.sol/IDeGuildPlus.json").abi;
+const magicScrollsPlusABI =
+  require("./contracts/MagicShop/V2/IMagicScrolls+.sol/IMagicScrollsPlus.json").abi;
 const { createAlchemyWeb3 } = require("@alch/alchemy-web3");
 
 const mkdirp = require("mkdirp");
@@ -135,29 +138,53 @@ const allCertificates = async (req, res) => {
 };
 
 const allCertificatesWeb3 = async (req, res) => {
-  // Grab the text parameter.
-  const readResult = await admin.firestore().collection(`Certificate`).get();
-  // Send back a message that we've successfully written the message3
-  functions.logger.log(readResult.docs);
-  readResult.docs.forEach((doc) => {
-    functions.logger.log(doc.id);
-  });
+  const web3 = createAlchemyWeb3(functions.config().web3.api);
+  const addressUser = req.params.addressU;
+  const page = req.params.page;
 
-  const allSkills = await Promise.all(
-    readResult.docs.map(async (doc) => {
-      let data = [];
-      const snapshot = await admin
-        .firestore()
-        .collection(`Certificate/${doc.id}/tokens`)
-        .orderBy("tokenId", "asc")
-        .get();
-      snapshot.forEach((doc) => {
-        data.push(doc.data());
-      });
-      return data.sort();
+  const certCollection = await admin
+    .firestore()
+    .collection(`Certificate`)
+    .get();
+  const everyCertificateAddress = certCollection.docs.map((doc) => doc.id);
+  const events = await Promise.all(
+    everyCertificateAddress.map(async (addr) => {
+      const certificateManager = new web3.eth.Contract(
+        skillCertificatePlusABI,
+        addr
+      );
+      const mintedCertificate = await certificateManager.getPastEvents(
+        "CertificateMinted",
+        {
+          fileter: { student: addressUser },
+          fromBlock: 0,
+          toBlock: "latest",
+        }
+      );
+      return mintedCertificate.returnValues;
     })
   );
-  res.json(allSkills);
+
+  const skillList = [].concat.apply([], events);
+
+  // from the block when the contract is deployed
+  functions.logger.log(skillList);
+  let slicedSkills;
+  if (page * 8 < skillList.length) {
+    slicedSkills = skillList.slice(page * 8, (page + 1) * 8);
+  } else {
+    res.status(404).json({
+      message: "Out of page",
+    });
+    return;
+  }
+  functions.logger.log(slicedSkills);
+
+  //pull data to scrolls
+  
+  //fit data offchain to onchain
+
+  res.json(skillList);
 };
 
 const readMagicScroll = async (req, res) => {
@@ -269,10 +296,10 @@ const allMagicScrollsWeb3 = async (req, res) => {
           .call();
 
         const fromDb = await admin
-        .firestore()
-        .collection(`MagicShop/${addressMagicShop}/tokens`)
-        .doc(event.returnValues.scrollType)
-        .get();
+          .firestore()
+          .collection(`MagicShop/${addressMagicShop}/tokens`)
+          .doc(event.returnValues.scrollType)
+          .get();
 
         const offChain = fromDb ? fromDb.data() : {};
 
@@ -291,14 +318,13 @@ const allMagicScrollsWeb3 = async (req, res) => {
           available: info[6],
         };
         return token;
-      } catch (err){
+      } catch (err) {
         return null;
       }
     })
   );
   functions.logger.log(scrollsTypesCombined);
   //fit data offchain to onchain
-
 
   res.json(scrollsTypesCombined);
 };
@@ -537,7 +563,7 @@ app.get("/magicScrolls/:addressM/:addressU/:page", allMagicScrollsWeb3);
 app.get("/allJobs/:address/:tokenId/:direction", allJobs);
 app.get("/allJobs/:address/", allJobs);
 
-// TODO: Work on this
+// TODO: Work on these
 app.get("/jobs/:address/:addressU", allJobsWeb3);
 app.get("/jobs/search/:address/:addressU/:title", allJobsWeb3);
 
