@@ -83,10 +83,24 @@ const allGuildCertificates = async (req, res) => {
         .collection(`Certificate/${doc.id}/tokens`)
         .orderBy("tokenId", "asc")
         .get();
-      snapshot.forEach((doc) => {
-        data.push(doc.data());
+      snapshot.forEach((shot) => {
+        data.push(shot.data());
       });
-      return data.sort();
+      const sorted = data.sort();
+      const withTypeAccept = await Promise.all(
+        sorted.map(async (token) => {
+          const obj = token;
+          const certificateManager = new web3.eth.Contract(
+            skillCertificatePlusABI,
+            obj.address
+          );
+          obj.typeAccepted = await certificateManager.methods
+            .typeAccepted(obj.tokenId)
+            .call();
+          return obj;
+        })
+      );
+      return withTypeAccept;
     })
   );
   res.json(allSkills);
