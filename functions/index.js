@@ -681,6 +681,99 @@ const allJobs = async (req, res) => {
   res.json(data.sort());
 };
 
+const fetchSkills = async (addresses, tokenIds) => {
+  const skillsOnChain = [];
+  for (let index = 0; index < addresses.length; index += 1) {
+    const address = addresses[index];
+    tokenIds[index].forEach((id) => skillsOnChain.push([address, id]));
+  }
+  const displayableSkills = await Promise.all(
+    skillsOnChain.map(async (pair) => {
+      const manager = new web3.eth.Contract(skillCertificatePlusABI, pair[0]);
+      const URI = await manager.methods.tokenURI(pair[1]).call();
+      const response = await fetch(URI, { mode: "cors" });
+      const caller = await manager.methods.shop().call();
+      const shop = new web3.eth.Contract(magicScrollsPlusABI, caller);
+      const shopCaller = await shop.methods.name().call();
+      const data = await response.json();
+
+      return {
+        name: data.title,
+        image: `${data.url.slice(0, 125)}thumb_${data.url.slice(125)}`,
+        address: data.address,
+        tokenId: data.tokenId,
+        shopName: shopCaller,
+        added: false,
+      };
+    })
+  );
+
+  return displayableSkills;
+};
+const idToJobs = async (deGuildAddress, jobId, blockNumber, jobName) => {
+  try {
+    const readResult = await admin
+      .firestore()
+      .collection(`DeGuild/${deGuildAddress}/tokens`)
+      .doc(jobId)
+      .get();
+    if (!readResult.data()) {
+      return {};
+    }
+    const infoOffChain = readResult.data();
+
+    const deGuild = new web3.eth.Contract(deGuildPlusABI, deGuildAddress);
+    const infoOnChain = await deGuild.methods.jobInfo(jobId).call();
+
+    const skillsFetched = await fetchSkills(infoOnChain[3], infoOnChain[4]);
+    const block = await web3.eth.getBlock(blockNumber);
+
+    const readResult2 = await admin
+      .firestore()
+      .collection(`User`)
+      .doc(userAddress)
+      .get();
+
+    let info = {
+      name: "Unknown",
+      url: noImg,
+    };
+    if (readResult2.data()) {
+      info = readResult2.data();
+      info.url = `${info.url.slice(0, 125)}thumb_${info.url.slice(125)}`;
+    }
+    const { timestamp } = block;
+    const deadline = new Date(timestamp * 1000);
+    deadline.setDate(deadline.getDate() + infoOffChain.time);
+
+    const jobObject = {
+      id: tokenId,
+      time: infoOffChain.time,
+      reward: web3.utils.fromWei(infoOnChain[0]),
+      client: infoOnChain[1],
+      clientName: info.name,
+      taker: infoOnChain[2],
+      skills: skillsFetched,
+      state: parseInt(infoOnChain[5], 10),
+      difficulty: infoOnChain[6],
+      level: parseInt(infoOffChain.level, 10),
+      image: info.url,
+      title: infoOffChain.title,
+      note: infoOffChain.note,
+      submission: infoOffChain.submission,
+      description: infoOffChain.description,
+      submitted: infoOffChain.submission.length > 0,
+      deadline,
+      status:
+        infoOffChain.submission.length > 0 ? "Submitted" : "No submission",
+    };
+
+    return jobObject;
+  } catch (err) {
+    return {};
+  }
+};
+
 const postedJob = async (req, res) => {
   const web3 = createAlchemyWeb3(functions.config().web3.api);
 
@@ -701,64 +794,28 @@ const postedJob = async (req, res) => {
   // console.log(caller);idToJob(ele.returnValues[0], ele.blockNumber)
   const history = await Promise.all(
     caller.map(async (ele) => {
-      try {
-        const infoOnChain = await deGuild.methods.jobInfo(ele.jobId).call();
-        const readResult = await admin
-          .firestore()
-          .collection(`DeGuild/${deGuildAddress}/tokens`)
-          .doc(ele.jobId)
-          .get();
-        const infoOffChain = readResult.data();
-        const skillsFetched = await fetchSkills(infoOnChain[3], infoOnChain[4]);
-        const block = await web3.eth.getBlock(ele.blockNumber);
-
-        const readResult2 = await admin
-          .firestore()
-          .collection(`User`)
-          .doc(userAddress)
-          .get();
-
-        let info = {
-          name: "Unknown",
-          url: noImg,
-        };
-        if (readResult2.data()) {
-          info = readResult2.data();
-          info.url = `${info.url.slice(0, 125)}thumb_${info.url.slice(125)}`;
-        }
-        const { timestamp } = block;
-        const deadline = new Date(timestamp * 1000);
-        deadline.setDate(deadline.getDate() + infoOffChain.time);
-        const jobObject = {
-          id: ele.tokenId,
-          time: infoOffChain.time,
-          reward: web3.utils.fromWei(infoOnChain[0]),
-          client: infoOnChain[1],
-          clientName: info.name,
-          taker: infoOnChain[2],
-          skills: skillsFetched,
-          state: parseInt(infoOnChain[5], 10),
-          difficulty: infoOnChain[6],
-          level: parseInt(infoOffChain.level, 10),
-          image: info.url,
-          title: infoOffChain.title,
-          note: infoOffChain.note,
-          submission: infoOffChain.submission,
-          description: infoOffChain.description,
-          submitted: infoOffChain.submission.length > 0,
-          deadline,
-          status:
-            infoOffChain.submission.length > 0 ? "Submitted" : "No submission",
-        };
-
-        console.log(jobObject);
-        return jobObject;
-      } catch (err) {
-        return {};
-      }
+      const job = await idToJobs(
+        deGuildAddress,
+        ele.returnValues[0],
+        ele.blockNumber,
+        jobName
+      );
+      return job;
     })
   );
-  jobs = history.filter((job) => job.client === userAddress);
+
+  jobs = history.filter((job) => job.title);
+  let slicedEvents;
+  if (pageIdx * 8 < jobs.length) {
+    slicedEvents = jobs.slice(pageIdx * 8, (pageIdx + 1) * 8);
+  } else {
+    res.status(404).json({
+      message: "Out of page",
+    });
+    return;
+  }
+  functions.logger.log(slicedEvents);
+
   if (order === "asc") {
     jobs = jobs.sort((a, b) =>
       parseInt(a[sortWith], 10) > parseInt(b[sortWith], 10) ? 1 : -1
