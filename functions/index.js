@@ -92,12 +92,14 @@ const allGuildCertificates = async (req, res) => {
   res.json(allSkills);
 };
 
-const allCourses = async (req, res) => {
-  // Grab the text parameter.
+const allGuildCertificatesQueryWeb3 = async (req, res) => {
   const web3 = createAlchemyWeb3(functions.config().web3.api);
 
+  // Grab the text parameter.
   const readResult = await admin.firestore().collection(`Certificate`).get();
+  const qSkill = req.params.skillName;
   // Send back a message that we've successfully written the message3
+  functions.logger.log(readResult.docs);
   readResult.docs.forEach((doc) => {
     functions.logger.log(doc.id);
   });
@@ -109,6 +111,7 @@ const allCourses = async (req, res) => {
         .firestore()
         .collection(`Certificate/${doc.id}/tokens`)
         .orderBy("tokenId", "asc")
+        .where("title", '>=', qSkill)
         .get();
       snapshot.forEach((doc) => {
         data.push(doc.data());
@@ -116,25 +119,32 @@ const allCourses = async (req, res) => {
       return data.sort();
     })
   );
-  const courses = [].concat.apply([], allSkills);
-  functions.logger.log("courses", courses);
+  function thumbThis(url) {
+    // console.log(url);
 
-  const coursesWithType = await Promise.all(
-    courses.map(async (course) => {
-      const obj = course;
-      const certificateManager = new web3.eth.Contract(
-        skillCertificatePlusABI,
-        obj.address
-      );
-      const typeAccepted = await certificateManager.methods
-        .typeAccepted(obj.tokenId.toString())
-        .call();
-      obj.typeAccepted = typeAccepted;
-      return obj;
+    const original = url.slice(0, 125);
+    const file = url.slice(125);
+    // console.log(`${original}thumb_${file}`);
+    return `${original}thumb_${file}`;
+  }
+
+  const mergedSkills = await Promise.all(
+    allSkills.map(async (ele) => {
+      const manager = new web3.eth.Contract(skillCertificatePlusABI, ele.address);
+      const caller = await manager.methods.shop().call();
+      const shop = new web3.eth.Contract(magicScrollsPlusABI, caller);
+      const shopCaller = await shop.methods.name().call();
+      return {
+        name: ele.title,
+        image: thumbThis(ele.url),
+        address: ele.address,
+        tokenId: ele.tokenId,
+        shopName: shopCaller,
+        added: false,
+      };
     })
   );
-
-  res.json(coursesWithType);
+  res.json(mergedSkills);
 };
 
 const allCertificates = async (req, res) => {
@@ -804,11 +814,11 @@ app.get("/readProfile/:address", readProfile);
 app.get("/allCertificates/:address/:tokenId/:direction", allCertificates);
 app.get("/allCertificates/:address", allCertificates);
 app.get("/allCertificates", allGuildCertificates);
-app.get("/courses", allCourses);
 
+//old, but good
 app.get("/shareCertificate/:addressC/:addressU/:tokenType", shareCertificate);
 
-// TODO: Work on this
+//new
 app.get("/certificates/:addressU/:page", allCertificatesWeb3);
 
 //Old
@@ -829,6 +839,8 @@ app.get("/allJobs/:address/:tokenId/:direction", allJobs);
 app.get("/allJobs/:address/", allJobs);
 
 // TODO: Work on these
+
+app.get("/allCertificates/:skillName", allGuildCertificatesQueryWeb3);
 app.get("/jobs/:address/:addressU", allJobsWeb3);
 app.get("/jobs/search/:address/:addressU/:title", allJobsWeb3);
 
