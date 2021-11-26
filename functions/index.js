@@ -117,7 +117,7 @@ const allCourses = async (req, res) => {
     })
   );
   const courses = [].concat.apply([], allSkills);
-  functions.logger.log('courses', courses);
+  functions.logger.log("courses", courses);
 
   const coursesWithType = await Promise.all(
     courses.map(async (course) => {
@@ -126,7 +126,9 @@ const allCourses = async (req, res) => {
         skillCertificatePlusABI,
         obj.address
       );
-      const typeAccepted = await certificateManager.methods.typeAccepted(obj.tokenId.toString()).call();
+      const typeAccepted = await certificateManager.methods
+        .typeAccepted(obj.tokenId.toString())
+        .call();
       obj.typeAccepted = typeAccepted;
       return obj;
     })
@@ -191,12 +193,12 @@ const allCertificatesWeb3 = async (req, res) => {
     .get();
   const everyCertificateAddress = certCollection.docs.map((doc) => doc.id);
   const events = await Promise.all(
-    everyCertificateAddress.map(async (addr) => {
+    everyCertificateAddress.map(async (address) => {
       const certificateManager = new web3.eth.Contract(
         skillCertificatePlusABI,
-        addr
+        address
       );
-      const mintedCertificate = await certificateManager.getPastEvents(
+      const mintedCertificates = await certificateManager.getPastEvents(
         "CertificateMinted",
         {
           fileter: { student: addressUser },
@@ -204,24 +206,38 @@ const allCertificatesWeb3 = async (req, res) => {
           toBlock: "latest",
         }
       );
-      // verify again
-      const caller = await certificateManager.methods
-        .verify(
-          mintedCertificate.returnValues.student,
-          mintedCertificate.returnValues.typeId
-        )
-        .call();
-      return mintedCertificate.returnValues;
+      return mintedCertificates.map((ele) => {
+        return { addr, token: ele.returnValues };
+      });
+    })
+  );
+  functions.logger.log(events);
+  const userCertificates = [].concat.apply([], events);
+  functions.logger.log(userCertificates);
+
+  const verifedEvents = Promise.all(
+    userCertificates.map(async (token) => {
+      const certificateManager = new web3.eth.Contract(
+        skillCertificatePlusABI,
+        token
+      );
+      const verification = await certificateManager.methods.verify(
+        token.student,
+        token.typeId
+      );
+      return { verification, token };
     })
   );
 
-  const skillList = [].concat.apply([], events);
+  const userVerifiedCertificates = verifedEvents.filter(
+    (obj) => obj.verification
+  );
 
   // from the block when the contract is deployed
-  functions.logger.log(skillList);
+  functions.logger.log(userVerifiedCertificates);
   let slicedSkills;
   if (page * 8 < skillList.length) {
-    slicedSkills = skillList.slice(page * 8, (page + 1) * 8);
+    slicedSkills = userVerifiedCertificates.slice(page * 8, (page + 1) * 8);
   } else {
     res.status(404).json({
       message: "Out of page",
@@ -234,7 +250,7 @@ const allCertificatesWeb3 = async (req, res) => {
 
   //fit data offchain to onchain
 
-  res.json(skillList);
+  res.json(slicedSkills);
 };
 
 const readMagicScroll = async (req, res) => {
@@ -782,7 +798,7 @@ app.get("/courses", allCourses);
 app.get("/shareCertificate/:addressC/:addressU/:tokenType", shareCertificate);
 
 // TODO: Work on this
-app.get("/certificates/:addressM/:addressU/:page", allCertificatesWeb3);
+app.get("/certificates/:addressU/:page", allCertificatesWeb3);
 
 //Old
 app.get("/allMagicScrolls/:address/:tokenId/:direction", allMagicScrolls);
