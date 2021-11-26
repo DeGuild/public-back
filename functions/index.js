@@ -225,7 +225,7 @@ const allCertificatesWeb3 = async (req, res) => {
         ele.token.student,
         ele.token.typeId
       );
-      return { verification, token: ele.token };
+      return { verification, address: ele.address, token: ele.token };
     })
   );
 
@@ -236,7 +236,7 @@ const allCertificatesWeb3 = async (req, res) => {
   // from the block when the contract is deployed
   functions.logger.log(userVerifiedCertificates);
   let slicedSkills;
-  if (page * 8 < skillList.length) {
+  if (page * 8 < userVerifiedCertificates.length) {
     slicedSkills = userVerifiedCertificates.slice(page * 8, (page + 1) * 8);
   } else {
     res.status(404).json({
@@ -244,13 +244,24 @@ const allCertificatesWeb3 = async (req, res) => {
     });
     return;
   }
-  functions.logger.log(slicedSkills);
+
+  const userPage = await Promise.all(
+    slicedSkills.map(async (ele) => {
+      const readResult = await admin
+        .firestore()
+        .collection(`Certificate/${ele.address}/tokens`)
+        .doc(ele.token.typeId)
+        .get();
+      return readResult.data();
+    })
+  );
+  functions.logger.log(userPage);
 
   //pull data to scrolls
 
   //fit data offchain to onchain
 
-  res.json(slicedSkills);
+  res.json(userPage);
 };
 
 const readMagicScroll = async (req, res) => {
