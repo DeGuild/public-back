@@ -22,9 +22,12 @@ const express = require("express");
 const cors = require("cors")({ origin: true });
 const app = express();
 
-const skillCertificatePlusABI = require("./contracts/SkillCertificates/V2/ISkillCertificate+.sol/ISkillCertificatePlus.json").abi;
-const deGuildPlusABI = require("./contracts/DeGuild/V2/IDeGuild+.sol/IDeGuildPlus.json").abi;
-const magicScrollsPlusABI = require("./contracts/MagicShop/V2/IMagicScrolls+.sol/IMagicScrollsPlus.json").abi;
+const skillCertificatePlusABI =
+  require("./contracts/SkillCertificates/V2/ISkillCertificate+.sol/ISkillCertificatePlus.json").abi;
+const deGuildPlusABI =
+  require("./contracts/DeGuild/V2/IDeGuild+.sol/IDeGuildPlus.json").abi;
+const magicScrollsPlusABI =
+  require("./contracts/MagicShop/V2/IMagicScrolls+.sol/IMagicScrollsPlus.json").abi;
 const { createAlchemyWeb3 } = require("@alch/alchemy-web3");
 
 const mkdirp = require("mkdirp");
@@ -89,6 +92,51 @@ const allGuildCertificates = async (req, res) => {
   res.json(allSkills);
 };
 
+const allCourses = async (req, res) => {
+  // Grab the text parameter.
+  const web3 = createAlchemyWeb3(functions.config().web3.api);
+
+  const readResult = await admin.firestore().collection(`Certificate`).get();
+  // Send back a message that we've successfully written the message3
+  readResult.docs.forEach((doc) => {
+    functions.logger.log(doc.id);
+  });
+
+  const allSkills = await Promise.all(
+    readResult.docs.map(async (doc) => {
+      let data = [];
+      const snapshot = await admin
+        .firestore()
+        .collection(`Certificate/${doc.id}/tokens`)
+        .orderBy("tokenId", "asc")
+        .get();
+      snapshot.forEach((doc) => {
+        data.push(doc.data());
+      });
+      return data.sort();
+    })
+  );
+  const courses = [].concat.apply([], allSkills);
+  functions.logger.log("courses", courses);
+
+  const coursesWithType = await Promise.all(
+    courses.map(async (course) => {
+      const obj = course;
+      const certificateManager = new web3.eth.Contract(
+        skillCertificatePlusABI,
+        obj.address
+      );
+      const typeAccepted = await certificateManager.methods
+        .typeAccepted(obj.tokenId.toString())
+        .call();
+      obj.typeAccepted = typeAccepted;
+      return obj;
+    })
+  );
+
+  res.json(coursesWithType);
+};
+
 const allCertificates = async (req, res) => {
   // Grab the text parameter.
   const address = req.params.address;
@@ -135,29 +183,85 @@ const allCertificates = async (req, res) => {
 };
 
 const allCertificatesWeb3 = async (req, res) => {
-  // Grab the text parameter.
-  const readResult = await admin.firestore().collection(`Certificate`).get();
-  // Send back a message that we've successfully written the message3
-  functions.logger.log(readResult.docs);
-  readResult.docs.forEach((doc) => {
-    functions.logger.log(doc.id);
-  });
+  const web3 = createAlchemyWeb3(functions.config().web3.api);
+  const addressUser = req.params.addressU;
+  const page = req.params.page;
 
-  const allSkills = await Promise.all(
-    readResult.docs.map(async (doc) => {
-      let data = [];
-      const snapshot = await admin
-        .firestore()
-        .collection(`Certificate/${doc.id}/tokens`)
-        .orderBy("tokenId", "asc")
-        .get();
-      snapshot.forEach((doc) => {
-        data.push(doc.data());
+  const certCollection = await admin
+    .firestore()
+    .collection(`Certificate`)
+    .get();
+  const everyCertificateAddress = certCollection.docs.map((doc) => doc.id);
+  const events = await Promise.all(
+    everyCertificateAddress.map(async (address) => {
+      const certificateManager = new web3.eth.Contract(
+        skillCertificatePlusABI,
+        address
+      );
+      const mintedCertificates = await certificateManager.getPastEvents(
+        "CertificateMinted",
+        {
+          fileter: { student: addressUser },
+          fromBlock: 0,
+          toBlock: "latest",
+        }
+      );
+      return mintedCertificates.map((ele) => {
+        return { address, token: ele.returnValues };
       });
-      return data.sort();
     })
   );
-  res.json(allSkills);
+  functions.logger.log(events);
+  const userCertificates = [].concat.apply([], events);
+  functions.logger.log(userCertificates);
+
+  const verifedEvents = await Promise.all(
+    userCertificates.map(async (ele) => {
+      const certificateManager = new web3.eth.Contract(
+        skillCertificatePlusABI,
+        ele.address
+      );
+      const verification = await certificateManager.methods.verify(
+        ele.token.student,
+        ele.token.typeId
+      );
+      return { verification, address: ele.address, token: ele.token };
+    })
+  );
+
+  const userVerifiedCertificates = verifedEvents.filter(
+    (obj) => obj.verification
+  );
+
+  // from the block when the contract is deployed
+  functions.logger.log(userVerifiedCertificates);
+  let slicedSkills;
+  if (page * 8 < userVerifiedCertificates.length) {
+    slicedSkills = userVerifiedCertificates.slice(page * 8, (page + 1) * 8);
+  } else {
+    res.status(404).json({
+      message: "Out of page",
+    });
+    return;
+  }
+
+  const userPage = await Promise.all(
+    slicedSkills.map(async (ele) => {
+      const readResult = await admin
+        .firestore()
+        .collection(`Certificate/${ele.address}/tokens`)
+        .doc(ele.token.typeId)
+        .get();
+      return readResult.data();
+    })
+  );
+  functions.logger.log(userPage);
+
+  //pull data to scrolls
+
+  //fit data offchain to onchain
+
+  res.json(userPage);
 };
 
 const readMagicScroll = async (req, res) => {
@@ -227,7 +331,7 @@ const allMagicScrolls = async (req, res) => {
   res.json(data.sort());
 };
 
-const allMagicScrollsWeb3 = async (req, res) => {
+const pageMagicScrollsWeb3 = async (req, res) => {
   // Grab the text parameter.
   const web3 = createAlchemyWeb3(functions.config().web3.api);
   const addressMagicShop = req.params.addressM;
@@ -269,10 +373,10 @@ const allMagicScrollsWeb3 = async (req, res) => {
           .call();
 
         const fromDb = await admin
-        .firestore()
-        .collection(`MagicShop/${addressMagicShop}/tokens`)
-        .doc(event.returnValues.scrollType)
-        .get();
+          .firestore()
+          .collection(`MagicShop/${addressMagicShop}/tokens`)
+          .doc(event.returnValues.scrollType)
+          .get();
 
         const offChain = fromDb ? fromDb.data() : {};
 
@@ -291,7 +395,7 @@ const allMagicScrollsWeb3 = async (req, res) => {
           available: info[6],
         };
         return token;
-      } catch (err){
+      } catch (err) {
         return null;
       }
     })
@@ -299,8 +403,181 @@ const allMagicScrollsWeb3 = async (req, res) => {
   functions.logger.log(scrollsTypesCombined);
   //fit data offchain to onchain
 
+  res.json(scrollsTypesCombined);
+};
+const pageMagicScrollsWeb3Inventory = async (req, res) => {
+  // Grab the text parameter.
+  const web3 = createAlchemyWeb3(functions.config().web3.api);
+  const addressMagicShop = req.params.addressM;
+  const addressUser = req.params.addressU;
+  const page = req.params.page;
+
+  const magicShop = new web3.eth.Contract(
+    magicScrollsPlusABI,
+    addressMagicShop
+  );
+
+  const consumed = await magicShop.getPastEvents("ScrollConsumed", {
+    fromBlock: 0,
+    toBlock: "latest",
+  });
+
+  const burned = await magicShop.getPastEvents("ScrollBurned", {
+    fromBlock: 0,
+    toBlock: "latest",
+  });
+  functions.logger.log("c", consumed);
+  functions.logger.log("b", burned);
+
+  // from the block when the contract is deployed
+  const scrollsEvent = await magicShop.getPastEvents("ScrollBought", {
+    filter: { buyer: addressUser },
+    fromBlock: 0,
+    toBlock: "latest",
+  });
+
+  functions.logger.log(scrollsEvent);
+  let slicedEvents;
+  if (page * 8 < scrollsEvent.length) {
+    slicedEvents = scrollsEvent.slice(page * 8, (page + 1) * 8);
+  } else {
+    res.status(404).json({
+      message: "Out of page",
+    });
+    return;
+  }
+  functions.logger.log(slicedEvents);
+
+  //pull data to scrolls
+  const scrollsCombined = await Promise.all(
+    slicedEvents.map(async (event) => {
+      try {
+        const isPurchasable = await magicShop.methods
+          .isPurchasableScroll(event.returnValues.scrollType, addressUser)
+          .call();
+        const info = await magicShop.methods
+          .scrollTypeInfo(event.returnValues.scrollType)
+          .call();
+
+        const fromDb = await admin
+          .firestore()
+          .collection(`MagicShop/${addressMagicShop}/tokens`)
+          .doc(event.returnValues.scrollType)
+          .get();
+
+        const isConsume = consumed.filter(
+          (ele) => ele.returnValues.scrollId === event.returnValues.scrollId
+        );
+        const isBurned = burned.filter(
+          (ele) => ele.returnValues.scrollId === event.returnValues.scrollId
+        );
+        let state = 1;
+        if (isConsume.length > 0) {
+          state = 2;
+        }
+        if (isBurned.length > 0) {
+          state = 3;
+        }
+        const offChain = fromDb ? fromDb.data() : {};
+
+        const token = {
+          tokenId: event.returnValues.scrollId,
+          url: offChain.url,
+          name: offChain.name,
+          courseId: offChain.courseId,
+          description: offChain.description,
+          isPurchasable,
+          state,
+          price: web3.utils.fromWei(info[1], "ether"),
+          prerequisiteId: info[2],
+          prerequisite: info[3],
+          hasLesson: info[4],
+          hasPrerequisite: info[5],
+          available: info[6],
+        };
+        return token;
+      } catch (err) {
+        return null;
+      }
+    })
+  );
+  functions.logger.log(scrollsCombined);
+  //fit data offchain to onchain
+
+  res.json(scrollsCombined);
+};
+const allMagicScrollsWeb3 = async (req, res) => {
+  // Grab the text parameter.
+  const web3 = createAlchemyWeb3(functions.config().web3.api);
+  const addressMagicShop = req.params.addressM;
+
+  const magicShop = new web3.eth.Contract(
+    magicScrollsPlusABI,
+    addressMagicShop
+  );
+
+  // from the block when the contract is deployed
+  const scrollsTypes = await magicShop.getPastEvents("ScrollAdded", {
+    fromBlock: 0,
+    toBlock: "latest",
+  });
+  functions.logger.log(scrollsTypes);
+
+  //pull data to scrolls
+  const scrollsTypesCombined = await Promise.all(
+    scrollsTypes.map(async (event) => {
+      try {
+        const fromDb = await admin
+          .firestore()
+          .collection(`MagicShop/${addressMagicShop}/tokens`)
+          .doc(event.returnValues.scrollType)
+          .get();
+
+        const offChain = fromDb ? fromDb.data() : {};
+
+        const token = {
+          tokenId: event.returnValues.scrollType,
+          url: offChain.url,
+          name: offChain.name,
+          courseId: offChain.courseId,
+          description: offChain.description,
+        };
+        return token;
+      } catch (err) {
+        return null;
+      }
+    })
+  );
+  functions.logger.log("i should return?", scrollsTypesCombined);
+  //fit data offchain to onchain
 
   res.json(scrollsTypesCombined);
+};
+
+const getAllCM = async (req, res) => {
+  // Grab the text parameter.
+  const web3 = createAlchemyWeb3(functions.config().web3.api);
+
+  const addressShop = req.params.addressM;
+  const magicShop = new web3.eth.Contract(magicScrollsPlusABI, addressShop);
+
+  // from the block when the contract is deployed
+  const events = await magicShop.getPastEvents("ApprovalForCM", {
+    fromBlock: 0,
+    toBlock: "latest",
+  });
+
+  functions.logger.log("i should return?", events);
+
+  const certificateManager = events.map((event) => event.returnValues.account);
+
+  if (certificateManager.length > 0) {
+    res.json(certificateManager);
+  } else {
+    res.status(404).json({
+      message: `${addressShop} has no approved manager!`,
+    });
+  }
 };
 
 const readJob = async (req, res) => {
@@ -509,6 +786,7 @@ const shareCertificate = async (req, res) => {
     });
   }
 };
+
 app.use((req, res, next) => {
   if (req.url.indexOf(`/${API_PREFIX}/`) === 0) {
     req.url = req.url.substring(API_PREFIX.length + 1);
@@ -522,22 +800,35 @@ app.get("/readMagicScroll/:address/:tokenId", readMagicScroll);
 app.get("/readJob/:address/:tokenId", readJob);
 app.get("/readProfile/:address", readProfile);
 
+//old
 app.get("/allCertificates/:address/:tokenId/:direction", allCertificates);
 app.get("/allCertificates/:address", allCertificates);
 app.get("/allCertificates", allGuildCertificates);
+app.get("/courses", allCourses);
+
 app.get("/shareCertificate/:addressC/:addressU/:tokenType", shareCertificate);
 
 // TODO: Work on this
-app.get("/certificates/:addressM/:addressU/:page", allCertificatesWeb3);
+app.get("/certificates/:addressU/:page", allCertificatesWeb3);
 
+//Old
 app.get("/allMagicScrolls/:address/:tokenId/:direction", allMagicScrolls);
 app.get("/allMagicScrolls/:address", allMagicScrolls);
-app.get("/magicScrolls/:addressM/:addressU/:page", allMagicScrollsWeb3);
 
+//New
+app.get("/magicScrolls/:addressM/:addressU/:page", pageMagicScrollsWeb3);
+app.get("/magicScrolls/:addressM", allMagicScrollsWeb3);
+app.get(
+  "/magicScrolls/inventory/:addressM/:addressU/:page",
+  pageMagicScrollsWeb3Inventory
+);
+app.get("/manager/:addressM", getAllCM);
+
+//old
 app.get("/allJobs/:address/:tokenId/:direction", allJobs);
 app.get("/allJobs/:address/", allJobs);
 
-// TODO: Work on this
+// TODO: Work on these
 app.get("/jobs/:address/:addressU", allJobsWeb3);
 app.get("/jobs/search/:address/:addressU/:title", allJobsWeb3);
 
