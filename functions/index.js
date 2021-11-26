@@ -207,7 +207,7 @@ const allCertificatesWeb3 = async (req, res) => {
         }
       );
       return mintedCertificates.map((ele) => {
-        return { addr, token: ele.returnValues };
+        return { address, token: ele.returnValues };
       });
     })
   );
@@ -215,15 +215,15 @@ const allCertificatesWeb3 = async (req, res) => {
   const userCertificates = [].concat.apply([], events);
   functions.logger.log(userCertificates);
 
-  const verifedEvents = Promise.all(
-    userCertificates.map(async (token) => {
+  const verifedEvents = await Promise.all(
+    userCertificates.map(async (ele) => {
       const certificateManager = new web3.eth.Contract(
         skillCertificatePlusABI,
-        token
+        ele.address
       );
       const verification = await certificateManager.methods.verify(
-        token.student,
-        token.typeId
+        ele.token.student,
+        ele.token.typeId
       );
       return { verification, token };
     })
