@@ -225,7 +225,7 @@ const allCertificatesWeb3 = async (req, res) => {
         ele.token.student,
         ele.token.typeId
       );
-      return { verification, token };
+      return { verification, token: ele.token };
     })
   );
 
