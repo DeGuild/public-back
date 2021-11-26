@@ -104,21 +104,41 @@ const allGuildCertificatesQueryWeb3 = async (req, res) => {
     functions.logger.log(doc.id);
   });
 
-  const allSkills = await Promise.all(
-    readResult.docs.map(async (doc) => {
-      let data = [];
-      const snapshot = await admin
-        .firestore()
-        .collection(`Certificate/${doc.id}/tokens`)
-        .orderBy("tokenId", "asc")
-        .where("title", '>=', qSkill)
-        .get();
-      snapshot.forEach((doc) => {
-        data.push(doc.data());
-      });
-      return data.sort();
-    })
-  );
+  let allSkills;
+  if (qSkill) {
+    allSkills = await Promise.all(
+      readResult.docs.map(async (doc) => {
+        let data = [];
+        const snapshot = await admin
+          .firestore()
+          .collection(`Certificate/${doc.id}/tokens`)
+          .orderBy("title", "asc")
+          .where("title", ">=", qSkill)
+          .get();
+        snapshot.forEach((doc) => {
+          data.push(doc.data());
+        });
+        return data.sort();
+      })
+    );
+  } else{
+    allSkills = await Promise.all(
+      readResult.docs.map(async (doc) => {
+        let data = [];
+        const snapshot = await admin
+          .firestore()
+          .collection(`Certificate/${doc.id}/tokens`)
+          .orderBy("tokenId", "asc")
+          .get();
+        snapshot.forEach((doc) => {
+          data.push(doc.data());
+        });
+        return data.sort();
+      })
+    );
+  }
+
+  const allSkillsFlatten = [].concat.apply(...allSkills);
   function thumbThis(url) {
     // console.log(url);
 
@@ -127,10 +147,14 @@ const allGuildCertificatesQueryWeb3 = async (req, res) => {
     // console.log(`${original}thumb_${file}`);
     return `${original}thumb_${file}`;
   }
+  functions.logger.log(allSkillsFlatten);
 
   const mergedSkills = await Promise.all(
-    allSkills.map(async (ele) => {
-      const manager = new web3.eth.Contract(skillCertificatePlusABI, ele.address);
+    allSkillsFlatten.map(async (ele) => {
+      const manager = new web3.eth.Contract(
+        skillCertificatePlusABI,
+        ele.address
+      );
       const caller = await manager.methods.shop().call();
       const shop = new web3.eth.Contract(magicScrollsPlusABI, caller);
       const shopCaller = await shop.methods.name().call();
@@ -840,9 +864,10 @@ app.get("/allJobs/:address/", allJobs);
 
 // TODO: Work on these
 
-app.get("/allCertificates/:skillName", allGuildCertificatesQueryWeb3);
+app.get("/guildCertificates/:skillName", allGuildCertificatesQueryWeb3);
+app.get("/guildCertificates", allGuildCertificatesQueryWeb3);
 app.get("/jobs/:address/:addressU", allJobsWeb3);
-app.get("/jobs/search/:address/:addressU/:title", allJobsWeb3);
+app.get("/jobs/:address/:addressU/:title", allJobsWeb3);
 
 exports.app = functions.https.onRequest(app);
 
