@@ -92,49 +92,83 @@ const allGuildCertificates = async (req, res) => {
   res.json(allSkills);
 };
 
-const allCourses = async (req, res) => {
-  // Grab the text parameter.
+const allGuildCertificatesQueryWeb3 = async (req, res) => {
   const web3 = createAlchemyWeb3(functions.config().web3.api);
 
+  // Grab the text parameter.
   const readResult = await admin.firestore().collection(`Certificate`).get();
+  const qSkill = req.params.skillName;
   // Send back a message that we've successfully written the message3
+  functions.logger.log(readResult.docs);
   readResult.docs.forEach((doc) => {
     functions.logger.log(doc.id);
   });
 
-  const allSkills = await Promise.all(
-    readResult.docs.map(async (doc) => {
-      let data = [];
-      const snapshot = await admin
-        .firestore()
-        .collection(`Certificate/${doc.id}/tokens`)
-        .orderBy("tokenId", "asc")
-        .get();
-      snapshot.forEach((doc) => {
-        data.push(doc.data());
-      });
-      return data.sort();
-    })
-  );
-  const courses = [].concat.apply([], allSkills);
-  functions.logger.log("courses", courses);
+  let allSkills;
+  if (qSkill) {
+    allSkills = await Promise.all(
+      readResult.docs.map(async (doc) => {
+        let data = [];
+        const snapshot = await admin
+          .firestore()
+          .collection(`Certificate/${doc.id}/tokens`)
+          .orderBy("title", "asc")
+          .where("title", ">=", qSkill)
+          .get();
+        snapshot.forEach((doc) => {
+          data.push(doc.data());
+        });
+        return data.sort();
+      })
+    );
+  } else {
+    allSkills = await Promise.all(
+      readResult.docs.map(async (doc) => {
+        let data = [];
+        const snapshot = await admin
+          .firestore()
+          .collection(`Certificate/${doc.id}/tokens`)
+          .orderBy("tokenId", "asc")
+          .get();
+        snapshot.forEach((doc) => {
+          data.push(doc.data());
+        });
+        return data.sort();
+      })
+    );
+  }
 
-  const coursesWithType = await Promise.all(
-    courses.map(async (course) => {
-      const obj = course;
-      const certificateManager = new web3.eth.Contract(
+  const allSkillsFlatten = [].concat.apply(...allSkills);
+  function thumbThis(url) {
+    // console.log(url);
+
+    const original = url.slice(0, 125);
+    const file = url.slice(125);
+    // console.log(`${original}thumb_${file}`);
+    return `${original}thumb_${file}`;
+  }
+  functions.logger.log(allSkillsFlatten);
+
+  const mergedSkills = await Promise.all(
+    allSkillsFlatten.map(async (ele) => {
+      const manager = new web3.eth.Contract(
         skillCertificatePlusABI,
-        obj.address
+        ele.address
       );
-      const typeAccepted = await certificateManager.methods
-        .typeAccepted(obj.tokenId.toString())
-        .call();
-      obj.typeAccepted = typeAccepted;
-      return obj;
+      const caller = await manager.methods.shop().call();
+      const shop = new web3.eth.Contract(magicScrollsPlusABI, caller);
+      const shopCaller = await shop.methods.name().call();
+      return {
+        name: ele.title,
+        image: thumbThis(ele.url),
+        address: ele.address,
+        tokenId: ele.tokenId,
+        shopName: shopCaller,
+        added: false,
+      };
     })
   );
-
-  res.json(coursesWithType);
+  res.json(mergedSkills);
 };
 
 const allCertificates = async (req, res) => {
@@ -579,7 +613,50 @@ const getAllCM = async (req, res) => {
     });
   }
 };
+const allCourses = async (req, res) => {
+  // Grab the text parameter.
+  const web3 = createAlchemyWeb3(functions.config().web3.api);
 
+  const readResult = await admin.firestore().collection(`Certificate`).get();
+  // Send back a message that we've successfully written the message3
+  readResult.docs.forEach((doc) => {
+    functions.logger.log(doc.id);
+  });
+
+  const allSkills = await Promise.all(
+    readResult.docs.map(async (doc) => {
+      let data = [];
+      const snapshot = await admin
+        .firestore()
+        .collection(`Certificate/${doc.id}/tokens`)
+        .orderBy("tokenId", "asc")
+        .get();
+      snapshot.forEach((doc) => {
+        data.push(doc.data());
+      });
+      return data.sort();
+    })
+  );
+  const courses = [].concat.apply([], allSkills);
+  functions.logger.log("courses", courses);
+
+  const coursesWithType = await Promise.all(
+    courses.map(async (course) => {
+      const obj = course;
+      const certificateManager = new web3.eth.Contract(
+        skillCertificatePlusABI,
+        obj.address
+      );
+      const typeAccepted = await certificateManager.methods
+        .typeAccepted(obj.tokenId.toString())
+        .call();
+      obj.typeAccepted = typeAccepted;
+      return obj;
+    })
+  );
+
+  res.json(coursesWithType);
+};
 const readJob = async (req, res) => {
   const address = req.params.address;
   const tokenId = req.params.tokenId;
@@ -647,50 +724,152 @@ const allJobs = async (req, res) => {
   res.json(data.sort());
 };
 
-const allJobsWeb3 = async (req, res) => {
-  // Grab the text parameter.
-  const address = req.params.address;
-  const tokenId = parseInt(req.params.tokenId, 10);
-  const direction = req.params.direction;
+const fetchSkills = async (addresses, tokenIds) => {
+  const skillsOnChain = [];
+  for (let index = 0; index < addresses.length; index += 1) {
+    const address = addresses[index];
+    tokenIds[index].forEach((id) => skillsOnChain.push([address, id]));
+  }
+  const displayableSkills = await Promise.all(
+    skillsOnChain.map(async (pair) => {
+      const manager = new web3.eth.Contract(skillCertificatePlusABI, pair[0]);
+      const URI = await manager.methods.tokenURI(pair[1]).call();
+      const response = await fetch(URI, { mode: "cors" });
+      const caller = await manager.methods.shop().call();
+      const shop = new web3.eth.Contract(magicScrollsPlusABI, caller);
+      const shopCaller = await shop.methods.name().call();
+      const data = await response.json();
 
-  let data = [];
-  if (direction === "next") {
-    const startAtSnapshot = admin
-      .firestore()
-      .collection(`DeGuild/${address}/tokens`)
-      .orderBy("tokenId", "asc")
-      .startAfter(tokenId);
+      return {
+        name: data.title,
+        image: `${data.url.slice(0, 125)}thumb_${data.url.slice(125)}`,
+        address: data.address,
+        tokenId: data.tokenId,
+        shopName: shopCaller,
+        added: false,
+      };
+    })
+  );
 
-    const items = await startAtSnapshot.limit(24).get();
-    items.forEach((doc) => {
-      data.push(doc.data());
-    });
-  } else if (direction === "previous") {
-    const startAtSnapshot = admin
-      .firestore()
-      .collection(`DeGuild/${address}/tokens`)
-      .orderBy("tokenId", "desc")
-      .startAfter(tokenId);
-
-    const items = await startAtSnapshot.limit(24).get();
-    items.forEach((doc) => {
-      data.push(doc.data());
-    });
-  } else {
+  return displayableSkills;
+};
+const idToJobs = async (deGuildAddress, jobId, blockNumber, jobName) => {
+  try {
     const readResult = await admin
       .firestore()
-      .collection(`DeGuild/${address}/tokens`)
-      .orderBy("tokenId", "asc")
-      .limit(24)
+      .collection(`DeGuild/${deGuildAddress}/tokens`)
+      .doc(jobId)
       .get();
-    // Send back a message that we've successfully written the message3
-    readResult.forEach((doc) => {
-      data.push(doc.data());
+    if (!readResult.data()) {
+      return {};
+    }
+    const infoOffChain = readResult.data();
+
+    const deGuild = new web3.eth.Contract(deGuildPlusABI, deGuildAddress);
+    const infoOnChain = await deGuild.methods.jobInfo(jobId).call();
+
+    const skillsFetched = await fetchSkills(infoOnChain[3], infoOnChain[4]);
+    const block = await web3.eth.getBlock(blockNumber);
+
+    const readResult2 = await admin
+      .firestore()
+      .collection(`User`)
+      .doc(userAddress)
+      .get();
+
+    let info = {
+      name: "Unknown",
+      url: noImg,
+    };
+    if (readResult2.data()) {
+      info = readResult2.data();
+      info.url = `${info.url.slice(0, 125)}thumb_${info.url.slice(125)}`;
+    }
+    const { timestamp } = block;
+    const deadline = new Date(timestamp * 1000);
+    deadline.setDate(deadline.getDate() + infoOffChain.time);
+
+    const jobObject = {
+      id: tokenId,
+      time: infoOffChain.time,
+      reward: web3.utils.fromWei(infoOnChain[0]),
+      client: infoOnChain[1],
+      clientName: info.name,
+      taker: infoOnChain[2],
+      skills: skillsFetched,
+      state: parseInt(infoOnChain[5], 10),
+      difficulty: infoOnChain[6],
+      level: parseInt(infoOffChain.level, 10),
+      image: info.url,
+      title: infoOffChain.title,
+      note: infoOffChain.note,
+      submission: infoOffChain.submission,
+      description: infoOffChain.description,
+      submitted: infoOffChain.submission.length > 0,
+      deadline,
+      status:
+        infoOffChain.submission.length > 0 ? "Submitted" : "No submission",
+    };
+
+    return jobObject;
+  } catch (err) {
+    return {};
+  }
+};
+
+const postedJob = async (req, res) => {
+  const web3 = createAlchemyWeb3(functions.config().web3.api);
+
+  const deGuildAddress = req.params.addressD;
+  const userAddress = req.params.addressU;
+  const pageIdx = req.params.pageIdx;
+  const sortWith = req.params.sortWith;
+  const order = req.params.order;
+  const jobName = req.params.jobName;
+  let jobs = [];
+  const deGuild = new web3.eth.Contract(deGuildPlusABI, deGuildAddress);
+
+  const caller = await deGuild.getPastEvents("JobAdded", {
+    filter: { client: userAddress },
+    fromBlock: 0,
+    toBlock: "latest",
+  });
+  // console.log(caller);idToJob(ele.returnValues[0], ele.blockNumber)
+  const history = await Promise.all(
+    caller.map(async (ele) => {
+      const job = await idToJobs(
+        deGuildAddress,
+        ele.returnValues[0],
+        ele.blockNumber,
+        jobName
+      );
+      return job;
+    })
+  );
+
+  jobs = history.filter((job) => job.title);
+  let slicedEvents;
+  if (pageIdx * 8 < jobs.length) {
+    slicedEvents = jobs.slice(pageIdx * 8, (pageIdx + 1) * 8);
+  } else {
+    res.status(404).json({
+      message: "Out of page",
     });
-    // readResult.map
+    return;
+  }
+  functions.logger.log(slicedEvents);
+
+  if (order === "asc") {
+    jobs = jobs.sort((a, b) =>
+      parseInt(a[sortWith], 10) > parseInt(b[sortWith], 10) ? 1 : -1
+    );
+  } else {
+    jobs = jobs.sort((a, b) =>
+      parseInt(a[sortWith], 10) < parseInt(b[sortWith], 10) ? 1 : -1
+    );
   }
 
-  res.json(data.sort());
+  res.json(jobs);
 };
 
 const readProfile = async (req, res) => {
@@ -804,11 +983,11 @@ app.get("/readProfile/:address", readProfile);
 app.get("/allCertificates/:address/:tokenId/:direction", allCertificates);
 app.get("/allCertificates/:address", allCertificates);
 app.get("/allCertificates", allGuildCertificates);
-app.get("/courses", allCourses);
 
+//old, but good
 app.get("/shareCertificate/:addressC/:addressU/:tokenType", shareCertificate);
 
-// TODO: Work on this
+//new
 app.get("/certificates/:addressU/:page", allCertificatesWeb3);
 
 //Old
@@ -823,14 +1002,25 @@ app.get(
   pageMagicScrollsWeb3Inventory
 );
 app.get("/manager/:addressM", getAllCM);
+app.get("/courses", allCourses);
 
 //old
 app.get("/allJobs/:address/:tokenId/:direction", allJobs);
 app.get("/allJobs/:address/", allJobs);
 
+app.get("/guildCertificates/:skillName", allGuildCertificatesQueryWeb3);
+app.get("/guildCertificates", allGuildCertificatesQueryWeb3);
+
 // TODO: Work on these
-app.get("/jobs/:address/:addressU", allJobsWeb3);
-app.get("/jobs/search/:address/:addressU/:title", allJobsWeb3);
+app.get(
+  "/postedJobs/:addressD/:addressU/:pageIdx/:sortWith/:order/:jobName",
+  postedJob
+);
+app.get("/postedJobs/:address/:addressU/:pageIdx/:sortWith/:sorted", postedJob);
+// app.get("/jobs/:address/:addressU", allJobsWeb3);
+
+// app.get("/jobs/:address/:addressU", allJobsWeb3);
+// app.get("/jobs/:address/:addressU/:title", allJobsWeb3);
 
 exports.app = functions.https.onRequest(app);
 
