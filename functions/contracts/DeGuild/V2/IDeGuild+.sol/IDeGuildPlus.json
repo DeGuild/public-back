@@ -336,6 +336,26 @@
           "internalType": "bool",
           "name": "decision",
           "type": "bool"
+        },
+        {
+          "internalType": "bool",
+          "name": "isCompleted",
+          "type": "bool"
+        },
+        {
+          "internalType": "uint256",
+          "name": "feeRate",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "clientRate",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "takerRate",
+          "type": "uint256"
         }
       ],
       "name": "judge",
