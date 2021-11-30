@@ -235,7 +235,7 @@ const allCertificatesWeb3 = async (req, res) => {
       const mintedCertificates = await certificateManager.getPastEvents(
         "CertificateMinted",
         {
-          fileter: { student: addressUser },
+          filter: { student: addressUser },
           fromBlock: 0,
           toBlock: "latest",
         }
