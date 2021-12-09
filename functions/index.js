@@ -1,18 +1,3 @@
-/**
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 "use strict";
 
 const functions = require("firebase-functions");
@@ -42,6 +27,9 @@ const THUMB_MAX_WIDTH = 200;
 const THUMB_PREFIX = "thumb_";
 const API_PREFIX = "api";
 
+/**
+ * @dev function to fetch certificate from database
+ */
 const readCertificate = async (req, res) => {
   // Grab the text parameter.
   const address = req.params.address;
@@ -66,6 +54,9 @@ const readCertificate = async (req, res) => {
   }
 };
 
+/**
+ * @dev function to fetch all certificates from database, used in DeGuild
+ */
 const allGuildCertificates = async (req, res) => {
   // Grab the text parameter.
   const readResult = await admin.firestore().collection(`Certificate`).get();
@@ -92,6 +83,9 @@ const allGuildCertificates = async (req, res) => {
   res.json(allSkills);
 };
 
+/**
+ * @dev function to fetch all certificates from database given a skill name, used in DeGuild
+ */
 const allGuildCertificatesQueryWeb3 = async (req, res) => {
   const web3 = createAlchemyWeb3(functions.config().web3.api);
 
@@ -139,12 +133,12 @@ const allGuildCertificatesQueryWeb3 = async (req, res) => {
   }
 
   const allSkillsFlatten = [].concat.apply(...allSkills);
+
+  //helper function
   function thumbThis(url) {
-    // console.log(url);
 
     const original = url.slice(0, 125);
     const file = url.slice(125);
-    // console.log(`${original}thumb_${file}`);
     return `${original}thumb_${file}`;
   }
   functions.logger.log(allSkillsFlatten);
@@ -171,6 +165,12 @@ const allGuildCertificatesQueryWeb3 = async (req, res) => {
   res.json(mergedSkills);
 };
 
+/**
+ * @dev function to fetch all certificates from database, 
+ * used in certificate sharing page
+ * 
+ * from path, it will check the direction and tokenId to fetch them
+ */
 const allCertificates = async (req, res) => {
   // Grab the text parameter.
   const address = req.params.address;
@@ -216,6 +216,12 @@ const allCertificates = async (req, res) => {
   res.json(data.sort());
 };
 
+/**
+ * @dev function to fetch certificates for a page from database, 
+ * used in certificate sharing page
+ * 
+ * from path, it will check the page number to fetch them
+ */
 const allCertificatesWeb3 = async (req, res) => {
   const web3 = createAlchemyWeb3(functions.config().web3.api);
   const addressUser = req.params.addressU;
@@ -298,6 +304,9 @@ const allCertificatesWeb3 = async (req, res) => {
   res.json(userPage);
 };
 
+/**
+ * @dev function to fetch magic scroll from database
+ */
 const readMagicScroll = async (req, res) => {
   // Grab the text parameter.
   const address = req.params.address;
@@ -320,6 +329,12 @@ const readMagicScroll = async (req, res) => {
   }
 };
 
+/**
+ * @dev function to fetch all magic scrolls from database, 
+ * used in Magic Shop page
+ * 
+ * from path, it will check the direction and tokenId to fetch them
+ */
 const allMagicScrolls = async (req, res) => {
   // Grab the text parameter.
   const address = req.params.address;
@@ -365,6 +380,12 @@ const allMagicScrolls = async (req, res) => {
   res.json(data.sort());
 };
 
+/**
+ * @dev function to fetch magic scrolls for a page from database, 
+ * used in Magic Shop page
+ * 
+ * from path, it will check the page number to fetch them
+ */
 const pageMagicScrollsWeb3 = async (req, res) => {
   // Grab the text parameter.
   const web3 = createAlchemyWeb3(functions.config().web3.api);
@@ -439,6 +460,13 @@ const pageMagicScrollsWeb3 = async (req, res) => {
 
   res.json(scrollsTypesCombined);
 };
+
+/**
+ * @dev function to fetch magic scrolls of the user for a page from database, 
+ * used in Magic Shop - inventory page
+ * 
+ * from path, it will check the page number to fetch them
+ */
 const pageMagicScrollsWeb3Inventory = async (req, res) => {
   // Grab the text parameter.
   const web3 = createAlchemyWeb3(functions.config().web3.api);
@@ -540,6 +568,11 @@ const pageMagicScrollsWeb3Inventory = async (req, res) => {
 
   res.json(scrollsCombined);
 };
+
+/**
+ * @dev function to fetch all magic scrolls from database, 
+ * used in admin page
+ */
 const allMagicScrollsWeb3 = async (req, res) => {
   // Grab the text parameter.
   const web3 = createAlchemyWeb3(functions.config().web3.api);
@@ -588,6 +621,10 @@ const allMagicScrollsWeb3 = async (req, res) => {
   res.json(scrollsTypesCombined);
 };
 
+/**
+ * @dev function to fetch all certificate managers from database, 
+ * used in admin page
+ */
 const getAllCM = async (req, res) => {
   // Grab the text parameter.
   const web3 = createAlchemyWeb3(functions.config().web3.api);
@@ -613,6 +650,11 @@ const getAllCM = async (req, res) => {
     });
   }
 };
+
+/**
+ * @dev function to fetch all certificates in a manager from database, 
+ * used in admin page
+ */
 const allCourses = async (req, res) => {
   // Grab the text parameter.
   const web3 = createAlchemyWeb3(functions.config().web3.api);
@@ -657,6 +699,10 @@ const allCourses = async (req, res) => {
 
   res.json(coursesWithType);
 };
+
+/**
+ * @dev function to fetch job from database
+ */
 const readJob = async (req, res) => {
   const address = req.params.address;
   const tokenId = req.params.tokenId;
@@ -678,6 +724,12 @@ const readJob = async (req, res) => {
   }
 };
 
+/**
+ * @dev function to fetch all jobs from database, 
+ * used in DeGuild dashboard page
+ * 
+ * from path, it will check the direction and tokenId to fetch them
+ */
 const allJobs = async (req, res) => {
   // Grab the text parameter.
   const address = req.params.address;
@@ -724,154 +776,9 @@ const allJobs = async (req, res) => {
   res.json(data.sort());
 };
 
-const fetchSkills = async (addresses, tokenIds) => {
-  const skillsOnChain = [];
-  for (let index = 0; index < addresses.length; index += 1) {
-    const address = addresses[index];
-    tokenIds[index].forEach((id) => skillsOnChain.push([address, id]));
-  }
-  const displayableSkills = await Promise.all(
-    skillsOnChain.map(async (pair) => {
-      const manager = new web3.eth.Contract(skillCertificatePlusABI, pair[0]);
-      const URI = await manager.methods.tokenURI(pair[1]).call();
-      const response = await fetch(URI, { mode: "cors" });
-      const caller = await manager.methods.shop().call();
-      const shop = new web3.eth.Contract(magicScrollsPlusABI, caller);
-      const shopCaller = await shop.methods.name().call();
-      const data = await response.json();
-
-      return {
-        name: data.title,
-        image: `${data.url.slice(0, 125)}thumb_${data.url.slice(125)}`,
-        address: data.address,
-        tokenId: data.tokenId,
-        shopName: shopCaller,
-        added: false,
-      };
-    })
-  );
-
-  return displayableSkills;
-};
-const idToJobs = async (deGuildAddress, jobId, blockNumber, jobName) => {
-  try {
-    const readResult = await admin
-      .firestore()
-      .collection(`DeGuild/${deGuildAddress}/tokens`)
-      .doc(jobId)
-      .get();
-    if (!readResult.data()) {
-      return {};
-    }
-    const infoOffChain = readResult.data();
-
-    const deGuild = new web3.eth.Contract(deGuildPlusABI, deGuildAddress);
-    const infoOnChain = await deGuild.methods.jobInfo(jobId).call();
-
-    const skillsFetched = await fetchSkills(infoOnChain[3], infoOnChain[4]);
-    const block = await web3.eth.getBlock(blockNumber);
-
-    const readResult2 = await admin
-      .firestore()
-      .collection(`User`)
-      .doc(userAddress)
-      .get();
-
-    let info = {
-      name: "Unknown",
-      url: noImg,
-    };
-    if (readResult2.data()) {
-      info = readResult2.data();
-      info.url = `${info.url.slice(0, 125)}thumb_${info.url.slice(125)}`;
-    }
-    const { timestamp } = block;
-    const deadline = new Date(timestamp * 1000);
-    deadline.setDate(deadline.getDate() + infoOffChain.time);
-
-    const jobObject = {
-      id: tokenId,
-      time: infoOffChain.time,
-      reward: web3.utils.fromWei(infoOnChain[0]),
-      client: infoOnChain[1],
-      clientName: info.name,
-      taker: infoOnChain[2],
-      skills: skillsFetched,
-      state: parseInt(infoOnChain[5], 10),
-      difficulty: infoOnChain[6],
-      level: parseInt(infoOffChain.level, 10),
-      image: info.url,
-      title: infoOffChain.title,
-      note: infoOffChain.note,
-      submission: infoOffChain.submission,
-      description: infoOffChain.description,
-      submitted: infoOffChain.submission.length > 0,
-      deadline,
-      status:
-        infoOffChain.submission.length > 0 ? "Submitted" : "No submission",
-    };
-
-    return jobObject;
-  } catch (err) {
-    return {};
-  }
-};
-
-const postedJob = async (req, res) => {
-  const web3 = createAlchemyWeb3(functions.config().web3.api);
-
-  const deGuildAddress = req.params.addressD;
-  const userAddress = req.params.addressU;
-  const pageIdx = req.params.pageIdx;
-  const sortWith = req.params.sortWith;
-  const order = req.params.order;
-  const jobName = req.params.jobName;
-  let jobs = [];
-  const deGuild = new web3.eth.Contract(deGuildPlusABI, deGuildAddress);
-
-  const caller = await deGuild.getPastEvents("JobAdded", {
-    filter: { client: userAddress },
-    fromBlock: 0,
-    toBlock: "latest",
-  });
-  // console.log(caller);idToJob(ele.returnValues[0], ele.blockNumber)
-  const history = await Promise.all(
-    caller.map(async (ele) => {
-      const job = await idToJobs(
-        deGuildAddress,
-        ele.returnValues[0],
-        ele.blockNumber,
-        jobName
-      );
-      return job;
-    })
-  );
-
-  jobs = history.filter((job) => job.title);
-  let slicedEvents;
-  if (pageIdx * 8 < jobs.length) {
-    slicedEvents = jobs.slice(pageIdx * 8, (pageIdx + 1) * 8);
-  } else {
-    res.status(404).json({
-      message: "Out of page",
-    });
-    return;
-  }
-  functions.logger.log(slicedEvents);
-
-  if (order === "asc") {
-    jobs = jobs.sort((a, b) =>
-      parseInt(a[sortWith], 10) > parseInt(b[sortWith], 10) ? 1 : -1
-    );
-  } else {
-    jobs = jobs.sort((a, b) =>
-      parseInt(a[sortWith], 10) < parseInt(b[sortWith], 10) ? 1 : -1
-    );
-  }
-
-  res.json(jobs);
-};
-
+/**
+ * @dev function to fetch user profile from database
+ */
 const readProfile = async (req, res) => {
   const address = req.params.address;
   const readResult = await admin
@@ -892,6 +799,9 @@ const readProfile = async (req, res) => {
   }
 };
 
+/**
+ * @dev function to render user's certificate html dynamically
+ */
 const shareCertificate = async (req, res) => {
   const web3 = createAlchemyWeb3(functions.config().web3.api);
   const addressCertificate = req.params.addressC;
@@ -966,6 +876,10 @@ const shareCertificate = async (req, res) => {
   }
 };
 
+
+/**
+ * @dev function to make api works by removing `API_PREFIX` if found
+ */
 app.use((req, res, next) => {
   if (req.url.indexOf(`/${API_PREFIX}/`) === 0) {
     req.url = req.url.substring(API_PREFIX.length + 1);
@@ -974,27 +888,30 @@ app.use((req, res, next) => {
 });
 app.use(cors);
 
+/**
+ * @dev URIs for contracts
+ */
 app.get("/readCertificate/:address/:tokenId", readCertificate);
 app.get("/readMagicScroll/:address/:tokenId", readMagicScroll);
 app.get("/readJob/:address/:tokenId", readJob);
 app.get("/readProfile/:address", readProfile);
 
-//old
+//old, not used in any deployed sites
 app.get("/allCertificates/:address/:tokenId/:direction", allCertificates);
 app.get("/allCertificates/:address", allCertificates);
+
+//old, used in deployed sites
+app.get("/shareCertificate/:addressC/:addressU/:tokenType", shareCertificate);
 app.get("/allCertificates", allGuildCertificates);
 
-//old, but good
-app.get("/shareCertificate/:addressC/:addressU/:tokenType", shareCertificate);
-
-//new
+//new, used in deployed sites
 app.get("/certificates/:addressU/:page", allCertificatesWeb3);
 
-//Old
+//Old, not used in any deployed sites
 app.get("/allMagicScrolls/:address/:tokenId/:direction", allMagicScrolls);
 app.get("/allMagicScrolls/:address", allMagicScrolls);
 
-//New
+//New, used in deployed sites
 app.get("/magicScrolls/:addressM/:addressU/:page", pageMagicScrollsWeb3);
 app.get("/magicScrolls/:addressM", allMagicScrollsWeb3);
 app.get(
@@ -1004,23 +921,13 @@ app.get(
 app.get("/manager/:addressM", getAllCM);
 app.get("/courses", allCourses);
 
-//old
+//old, not used in any deployed sites
 app.get("/allJobs/:address/:tokenId/:direction", allJobs);
 app.get("/allJobs/:address/", allJobs);
 
+//new, used in deployed sites
 app.get("/guildCertificates/:skillName", allGuildCertificatesQueryWeb3);
 app.get("/guildCertificates", allGuildCertificatesQueryWeb3);
-
-// TODO: Work on these
-app.get(
-  "/postedJobs/:addressD/:addressU/:pageIdx/:sortWith/:order/:jobName",
-  postedJob
-);
-app.get("/postedJobs/:address/:addressU/:pageIdx/:sortWith/:sorted", postedJob);
-// app.get("/jobs/:address/:addressU", allJobsWeb3);
-
-// app.get("/jobs/:address/:addressU", allJobsWeb3);
-// app.get("/jobs/:address/:addressU/:title", allJobsWeb3);
 
 exports.app = functions.https.onRequest(app);
 
